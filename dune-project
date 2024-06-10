@@ -1,20 +1,18 @@
 (lang dune 3.0)
 
-(name whymon)
+(name duomon)
 
 (generate_opam_files true)
 
 (source
- (github runtime-monitoring/whymon))
+ (github runtime-monitoring/duomon))
 
 (authors
  "Leonardo Lima <hi@nameless.computer>"
- "Jonathan Julian Huerta y Munive <jonjulian23@gmail.com>"
  "Dmitriy Traytel <traytel@di.ku.dk>")
 
 (maintainers
  "Leonardo Lima <hi@nameless.computer>"
- "Jonathan Julian Huerta y Munive <jonjulian23@gmail.com>"
  "Dmitriy Traytel <traytel@di.ku.dk>")
 
 (license LICENSE)
@@ -24,7 +22,7 @@
 (using menhir 2.0)
 
 (package
- (name whymon)
+ (name duomon)
  (synopsis "")
  (description "")
  (depends
