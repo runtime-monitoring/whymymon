@@ -1,9 +1,9 @@
 (*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
+(*     This is part of DuoMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
-(*  Copyright 2023:                                                *)
+(*  Copyright 2024:                                                *)
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
@@ -11,10 +11,7 @@ open Base
 
 module Fdeque = Core.Fdeque
 
-(* I/O related *)
 val debug: bool ref
-val inc_ref: Stdio.In_channel.t ref
-val outc_ref: Stdio.Out_channel.t ref
 
 (* Misc *)
 type timepoint = int

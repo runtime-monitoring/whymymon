@@ -15,13 +15,18 @@ open Monitor_lib
 (* TODO: This module must be rewritten using the Command module from Core *)
 module Duomon = struct
 
-  let monitor_ref = ref Argument.Monitor.MonPoly
-  let path_ref = ref ""
+  let mon_path_ref = ref ""
+  let sig_path_ref = ref ""
+  let formula_path_ref = ref ""
+
+  let mon_ref = ref Argument.Monitor.MonPoly
   let pref_ref = ref Argument.Preference.Violation
   let mode_ref = ref Argument.Mode.Unverified
   let formula_ref = ref None
-  let sig_ref = ref In_channel.stdin
+  let trace_ref = ref Stdio.In_channel.stdin
   let logstr_ref = ref ""
+
+  let outc_ref = ref Stdio.Out_channel.stdout
 
   let nec_arg_count = ref 0
 
@@ -54,11 +59,11 @@ module Duomon = struct
     let rec process_args_rec = function
       | ("-monitor" :: m :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         monitor_ref := Argument.Monitor.of_string m;
+         mon_ref := Argument.Monitor.of_string m;
          process_args_rec args
       | ("-path" :: p :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         path_ref := p;
+         mon_path_ref := p;
          process_args_rec args
       | ("-pref" :: p :: args) ->
          pref_ref := Argument.Preference.of_string p;
@@ -68,10 +73,12 @@ module Duomon = struct
          process_args_rec args
       | ("-sig" :: sf :: args) ->
          nec_arg_count := !nec_arg_count + 1;
+         sig_path_ref := sf;
          Other_parser.Sig.parse_from_channel sf;
          process_args_rec args
       | ("-formula" :: f :: args) ->
          nec_arg_count := !nec_arg_count + 1;
+         formula_path_ref := f;
          In_channel.with_file f ~f:(fun inc ->
              let lexbuf = Lexing.from_channel inc in
              formula_ref := try Some(Formula_parser.formula Formula_lexer.token lexbuf)
@@ -79,8 +86,8 @@ module Duomon = struct
                               Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf);
                               Stdlib.flush_all (); None);
          process_args_rec args
-      | ("-log" :: logf :: args) ->
-         Etc.inc_ref := In_channel.create logf;
+      | ("-log" :: f :: args) ->
+         trace_ref := In_channel.create f;
          process_args_rec args
       | ("-logstr" :: logs :: args) ->
          logstr_ref := logs;
@@ -93,10 +100,10 @@ module Duomon = struct
     try
       process_args (List.tl_exn (Array.to_list Sys.argv));
       let formula = Option.value_exn !formula_ref in
-      match !monitor_ref with
-      | DejaVu -> (* Monitor.exec !monitor_ref !measure_ref formula !Etc.inc_ref *) ()
-      | MonPoly -> (* Monitor.exec !monitor_ref !measure_ref formula !Etc.inc_ref *) ()
+      match !mon_ref with
+      | DejaVu -> (* Monitor.exec !mon_ref !measure_ref formula !Etc.trace_ref *) ()
+      | MonPoly -> (* Monitor.exec !mon_ref !measure_ref formula !Etc.trace_ref *) ()
       | TimelyMon -> ()
-    with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
+    with End_of_file -> Out_channel.close !outc_ref; exit 0
 
 end
