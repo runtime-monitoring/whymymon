@@ -7,18 +7,12 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-module MFormula : sig
+module State : sig
 
   type t
 
 end
 
-module MState : sig
+val exec: Argument.Mode.t -> string -> Formula.t -> in_channel -> unit
 
-  type t
-
-end
-
-val exec: Out.Plain.mode -> string -> Formula.t -> in_channel -> unit
-
-val exec_vis: MState.t option -> Formula.t -> string -> (MState.t * string)
+val exec_vis: State.t option -> Formula.t -> string -> (State.t * string)

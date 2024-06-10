@@ -1,0 +1,102 @@
+(*******************************************************************)
+(*     This is part of DuoMon, and it is distributed under the     *)
+(*     terms of the GNU Lesser General Public License version 3    *)
+(*           (see file LICENSE for more details)                   *)
+(*                                                                 *)
+(*  Copyright 2024:                                                *)
+(*  Dmitriy Traytel (UCPH)                                         *)
+(*  Leonardo Lima (UCPH)                                           *)
+(*******************************************************************)
+
+open Base
+open Stdio
+open Monitor_lib
+
+(* TODO: This module must be rewritten using the Command module from Core *)
+module Duomon = struct
+
+  let monitor_ref = ref Argument.Monitor.MonPoly
+  let path_ref = ref ""
+  let pref_ref = ref Argument.Preference.Violation
+  let mode_ref = ref Argument.Mode.Unverified
+  let formula_ref = ref None
+  let sig_ref = ref In_channel.stdin
+  let logstr_ref = ref ""
+
+  let nec_arg_count = ref 0
+
+  let usage () =
+    Caml.Format.eprintf
+      "usage: ./duomon.exe [-monitor <monitor>] [-path <file>] [-measure <measure>]
+                           [-sig <file>] [-formula <file>] [-log <file>]
+       arguments:
+       \t -monitor
+       \t\t dejavu
+       \t\t monpoly
+       \t\t timelymon
+       \t -path
+       \t\t <file>             - chosen monitor's executable
+       \t -pref
+       \t\t vio                - detect violations (default)
+       \t\t sat                - detect satisfactions
+       \t -mode
+       \t\t unverified         - (default)
+       \t\t verified           - check output with formally verified checker
+       \t -sig
+       \t\t <file>             - signature
+       \t -formula
+       \t\t <file> or <string> - MFOTL formula
+       \t -log
+       \t\t <file>             - specify log file as trace (default: stdin)\n%!";
+    exit 0
+
+  let process_args =
+    let rec process_args_rec = function
+      | ("-monitor" :: m :: args) ->
+         nec_arg_count := !nec_arg_count + 1;
+         monitor_ref := Argument.Monitor.of_string m;
+         process_args_rec args
+      | ("-path" :: p :: args) ->
+         nec_arg_count := !nec_arg_count + 1;
+         path_ref := p;
+         process_args_rec args
+      | ("-pref" :: p :: args) ->
+         pref_ref := Argument.Preference.of_string p;
+         process_args_rec args
+      | ("-mode" :: m :: args) ->
+         mode_ref := Argument.Mode.of_string m;
+         process_args_rec args
+      | ("-sig" :: sf :: args) ->
+         nec_arg_count := !nec_arg_count + 1;
+         Other_parser.Sig.parse_from_channel sf;
+         process_args_rec args
+      | ("-formula" :: f :: args) ->
+         nec_arg_count := !nec_arg_count + 1;
+         In_channel.with_file f ~f:(fun inc ->
+             let lexbuf = Lexing.from_channel inc in
+             formula_ref := try Some(Formula_parser.formula Formula_lexer.token lexbuf)
+                            with Formula_parser.Error ->
+                              Stdio.printf "%s\n" (Etc.lexbuf_error_msg lexbuf);
+                              Stdlib.flush_all (); None);
+         process_args_rec args
+      | ("-log" :: logf :: args) ->
+         Etc.inc_ref := In_channel.create logf;
+         process_args_rec args
+      | ("-logstr" :: logs :: args) ->
+         logstr_ref := logs;
+         process_args_rec args
+      | [] -> if !nec_arg_count >= 4 then () else usage ()
+      | _ -> usage () in
+    process_args_rec
+
+  let _ =
+    try
+      process_args (List.tl_exn (Array.to_list Sys.argv));
+      let formula = Option.value_exn !formula_ref in
+      match !monitor_ref with
+      | DejaVu -> (* Monitor.exec !monitor_ref !measure_ref formula !Etc.inc_ref *) ()
+      | MonPoly -> (* Monitor.exec !monitor_ref !measure_ref formula !Etc.inc_ref *) ()
+      | TimelyMon -> ()
+    with End_of_file -> Out_channel.close !Etc.outc_ref; exit 0
+
+end

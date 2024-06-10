@@ -14,8 +14,6 @@ open Checker_interface
 
 module Plain = struct
 
-  type mode = UNVERIFIED | VERIFIED | LATEX | LIGHT | DEBUG | DEBUGVIS
-
   type t =
     | Explanation of (timestamp * timepoint) * Expl.t
     | ExplanationCheck of (timestamp * timepoint) * Expl.t * bool
@@ -49,18 +47,17 @@ module Plain = struct
     | Info s -> Stdio.printf "\nInfo: %s\n\n" s
 
   let expls tstp_expls checker_es_opt paths_opt f_opt = function
-    | UNVERIFIED -> List.iter tstp_expls ~f:(fun ((ts, tp), e) -> expl (Explanation ((ts, tp), e)))
-    | VERIFIED -> List.iter2_exn tstp_expls (Option.value_exn checker_es_opt)
+    | Argument.Mode.Unverified -> List.iter tstp_expls ~f:(fun ((ts, tp), e) ->
+                                      expl (Explanation ((ts, tp), e)))
+    | Verified -> List.iter2_exn tstp_expls (Option.value_exn checker_es_opt)
                     ~f:(fun ((ts, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
-    | LATEX -> List.iter tstp_expls ~f:(fun ((ts, tp), e) ->
+    | LaTeX -> List.iter tstp_expls ~f:(fun ((ts, tp), e) ->
                    expl (ExplanationLatex ((ts, tp), e, Option.value_exn f_opt)))
-    | LIGHT -> List.iter tstp_expls ~f:(fun ((ts, tp), e) -> if Expl.is_violated e then
-                                                               expl (ExplanationLight ((ts, tp), e)))
-    | DEBUG -> List.iter2_exn (List.zip_exn tstp_expls (Option.value_exn checker_es_opt))
+    | Debug -> List.iter2_exn (List.zip_exn tstp_expls (Option.value_exn checker_es_opt))
                  (Option.value_exn paths_opt)
                  ~f:(fun (((ts, tp), e), (b, checker_e, trace)) path_opt ->
                    expl (ExplanationCheckDebug ((ts, tp), e, b, checker_e, trace, path_opt)))
-    | DEBUGVIS -> raise (Failure "this function is undefined for the mode debugvis")
+    | DebugVis -> raise (Failure "this function is undefined for the mode DebugVis")
 
 end
 

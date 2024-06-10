@@ -11,12 +11,14 @@ open Base
 
 module Fdeque = Core.Fdeque
 
-type timepoint = int
-type timestamp = int
-
+(* I/O related *)
 let debug = ref false
 let inc_ref = ref Stdio.In_channel.stdin
 let outc_ref = ref Stdio.Out_channel.stdout
+
+(* Misc *)
+type timepoint = int
+type timestamp = int
 
 let eat s t = s ^ (String.strip t)
 let paren h k x = if h>k then "("^^x^^")" else x

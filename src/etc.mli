@@ -7,14 +7,18 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Core
+open Base
 
-type timepoint = int
-type timestamp = int
+module Fdeque = Core.Fdeque
 
+(* I/O related *)
 val debug: bool ref
 val inc_ref: Stdio.In_channel.t ref
 val outc_ref: Stdio.Out_channel.t ref
+
+(* Misc *)
+type timepoint = int
+type timestamp = int
 
 val eat: string -> string -> string
 val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f, 'g) format6
