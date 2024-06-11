@@ -104,8 +104,8 @@ module Proof : sig
   val isS: t -> bool
   val isV: t -> bool
 
-  val s_append: sp -> sp -> sp
-  val v_append: vp -> vp -> vp
+  val s_append: t -> t -> t
+  val v_append: t -> t -> t
   val s_drop: sp -> sp option
   val v_drop: vp -> vp option
 

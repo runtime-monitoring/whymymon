@@ -107,6 +107,8 @@ let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
 
 type polarity = SAT | VIO
 
+let h_tp_ts = Hashtbl.create (module Int)
+
 module State = struct
 
   type t = { f: Formula.t
@@ -116,72 +118,94 @@ module State = struct
 
 end
 
-let explain v dbs pol tp f =
+let explain v trace pol tp f =
   let vars = Set.elements (Formula.fv f) in
-  (* What should eval return? A proof tree or a PDT? *)
   let rec eval pol tp (f: Formula.t) = match f with
     | TT -> (match pol with
-             | SAT -> ()
-             | VIO -> ())
+             | SAT -> None
+             | VIO -> None)
     | FF -> (match pol with
-             | SAT -> ()
-             | VIO -> ())
+             | SAT -> None
+             | VIO -> None)
     | EqConst (x, d) -> (match pol with
-                         | SAT -> ()
-                         | VIO -> ())
+                         | SAT -> None
+                         | VIO -> None)
     | Predicate (r, trms) -> (match pol with
-                              | SAT -> ()
-                              | VIO -> ())
+                              | SAT -> None
+                              | VIO -> None)
     | Neg f -> (match pol with
-                | SAT -> ()
-                | VIO -> ())
+                | SAT -> None
+                | VIO -> None)
     | And (f1, f2) -> (match pol with
-                       | SAT -> ()
-                       | VIO -> ())
+                       | SAT -> None
+                       | VIO -> None)
     | Or (f1, f2) -> (match pol with
-                      | SAT -> ()
-                      | VIO -> ())
+                      | SAT -> None
+                      | VIO -> None)
     | Imp (f1, f2) -> (match pol with
-                       | SAT -> ()
-                       | VIO -> ())
+                       | SAT -> None
+                       | VIO -> None)
     | Iff (f1, f2) -> (match pol with
-                       | SAT -> ()
-                       | VIO -> ())
+                       | SAT -> None
+                       | VIO -> None)
     | Exists (x, f) -> (match pol with
-                        | SAT -> ()
-                        | VIO -> ())
+                        | SAT -> None
+                        | VIO -> None)
     | Forall (x, f) -> (match pol with
-                        | SAT -> ()
-                        | VIO -> ())
+                        | SAT -> None
+                        | VIO -> None)
     | Prev (i, f) -> (match pol with
-                      | SAT -> ()
-                      | VIO -> ())
+                      | SAT -> None
+                      | VIO -> None)
     | Next (i, f) -> (match pol with
-                      | SAT -> ()
-                      | VIO -> ())
+                      | SAT -> None
+                      | VIO -> None)
     | Once (i, f) -> (match pol with
-                      | SAT -> ()
-                      | VIO -> ())
+                      | SAT -> None
+                      | VIO -> None)
     | Eventually (i, f) -> (match pol with
-                            | SAT -> ()
-                            | VIO -> ())
+                            | SAT -> None
+                            | VIO -> None)
     | Historically (i, f) -> (match pol with
-                              | SAT -> ()
-                              | VIO -> ())
+                              | SAT -> None
+                              | VIO -> None)
     | Always (i, f) -> (match pol with
-                        | SAT -> ()
-                        | VIO -> ())
+                        | SAT -> None
+                        | VIO -> None)
     | Since (i, f1, f2) -> (match pol with
-                            | SAT -> ()
-                            | VIO -> ())
+                            | SAT -> since_sat i f1 f2 tp []
+                            | VIO -> None)
     | Until (i, f1, f2) -> (match pol with
-                            | SAT -> ()
-                            | VIO -> ())
+                            | SAT -> None
+                            | VIO -> None)
   and since_sat i f1 f2 tp alphas_sat =
+    let continue_alphas_sat i f1 f2 tp alphas_sat =
+      (match eval SAT tp f1 with
+       | Some expl -> (match Hashtbl.find h_tp_ts (tp - 1) with
+                       | Some ts' -> let ts = Hashtbl.find_exn h_tp_ts tp in
+                                     since_sat (Interval.sub (ts - ts') i)
+                                       f1 f2 (tp - 1) (expl :: alphas_sat)
+                       | None -> None)
+       | None -> None) in
     if Interval.mem 0 i then
-      ()
+      (match eval SAT tp f2 with
+       | Some expl ->
+          Some (List.fold alphas_sat ~init:expl ~f:(fun ssince_expl alpha_sat ->
+                    Pdt.apply2_reduce Proof.equal vars
+                      (fun sp sp1 -> Proof.s_append sp sp1)
+                      ssince_expl alpha_sat))
+       | None -> continue_alphas_sat i f1 f2 tp alphas_sat)
+    else continue_alphas_sat i f1 f2 tp alphas_sat
+  and since_vio i f1 f2 tp alphas_sat =
+    if Interval.mem 0 i then
+      None
     else
-      () in
+      None
+  and until_sat i f1 f2 tp =
+    if Interval.mem 0 i then
+      None
+    else
+      None in
   eval pol tp f
 
 let exec () = ()

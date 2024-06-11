@@ -302,16 +302,16 @@ module Proof = struct
     | S _ -> false
     | V _ -> true
 
-  let s_append sp sp1 = match sp with
-    | SSince (sp2, sp1s) -> SSince (sp2, Fdeque.enqueue_back sp1s sp1)
-    | SUntil (sp2, sp1s) -> SUntil (sp2, Fdeque.enqueue_back sp1s sp1)
+  let s_append sp sp1 = match (unS sp) with
+    | SSince (sp2, sp1s) -> S (SSince (sp2, Fdeque.enqueue_back sp1s (unS sp1)))
+    | SUntil (sp2, sp1s) -> S (SUntil (sp2, Fdeque.enqueue_back sp1s (unS sp1)))
     | _ -> raise (Invalid_argument "sappend is not defined for this sp")
 
-  let v_append vp vp2 = match vp with
-    | VSince (tp, vp1, vp2s) -> VSince (tp,  vp1, Fdeque.enqueue_back vp2s vp2)
-    | VSinceInf (tp, etp, vp2s) -> VSinceInf (tp, etp, Fdeque.enqueue_back vp2s vp2)
-    | VUntil (tp, vp1, vp2s) -> VUntil (tp, vp1, Fdeque.enqueue_back vp2s vp2)
-    | VUntilInf (tp, ltp, vp2s) -> VUntilInf (tp, ltp, Fdeque.enqueue_back vp2s vp2)
+  let v_append vp vp2 = match (unV vp) with
+    | VSince (tp, vp1, vp2s) -> V (VSince (tp,  vp1, Fdeque.enqueue_back vp2s (unV vp2)))
+    | VSinceInf (tp, etp, vp2s) -> V (VSinceInf (tp, etp, Fdeque.enqueue_back vp2s (unV vp2)))
+    | VUntil (tp, vp1, vp2s) -> V (VUntil (tp, vp1, Fdeque.enqueue_back vp2s (unV vp2)))
+    | VUntilInf (tp, ltp, vp2s) -> V (VUntilInf (tp, ltp, Fdeque.enqueue_back vp2s (unV vp2)))
     | _ -> raise (Invalid_argument "vappend is not defined for this vp")
 
   let s_drop = function
