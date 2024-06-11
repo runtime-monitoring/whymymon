@@ -59,6 +59,7 @@ let right =
   let right_BI (BI (l, r)) = Some(r) in
   case right_BI right_UI
 
+(* Check if t < interval *)
 let below_UI t (UI l) = t < l
 let below_BI t (BI (l, r)) = t < l
 let below t = case (below_BI t) (below_UI t)
@@ -67,6 +68,20 @@ let below t = case (below_BI t) (below_UI t)
 let above_UI t (UI l) = false
 let above_BI t (BI (l, r)) = t > r
 let above t = case (above_BI t) (above_UI t)
+
+let sub_UI t (UI l) = if l - t > 0 then U (UI (l - t))
+                      else U (UI 0)
+let sub_BI t (BI (l, r)) = if l - t > 0 then
+                             B (BI (l - t, r - t))
+                           else (if r - t > 0 then
+                                   B (BI (0, r - t))
+                                 else
+                                   B (BI (0, 0)))
+let sub t = case (sub_BI t) (sub_UI t)
+
+let add_UI t (UI l) = U (UI (l + t))
+let add_BI t (BI (l, r)) = B (BI (l + t, r + t))
+let add t = case (add_BI t) (add_UI t)
 
 let to_string_BI = function
   | BI (i, j) -> Printf.sprintf "[%d,%d]" i j
