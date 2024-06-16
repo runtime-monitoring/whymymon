@@ -11,10 +11,11 @@ open Base
 
 module Monitor = struct
 
-  type t = MonPoly | DejaVu | TimelyMon
+  type t = MonPoly | VeriMon | DejaVu | TimelyMon
 
   let of_string = function
     | "monpoly" | "MonPoly" | "Monpoly" -> MonPoly
+    | "verimon" | "VeriMon" | "Verimon" -> VeriMon
     | "dejavu" | "DejaVu" | "Dejavu" -> DejaVu
     | "timelymon" | "TimelyMon" | "Timelymon" -> TimelyMon
     | _ -> Caml.Format.eprintf "monitors supported: monpoly, dejavu or timelymon\n%!";
@@ -22,6 +23,7 @@ module Monitor = struct
 
   let to_string = function
     | MonPoly -> "MonPoly"
+    | VeriMon -> "VeriMon"
     | DejaVu -> "DejaVu"
     | TimelyMon -> "TimelyMon"
 

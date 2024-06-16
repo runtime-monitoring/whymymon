@@ -11,4 +11,8 @@ open Core_unix
 
 let exec db = ()
 
-let start mon mon_path sig_path f_path = ()
+let start (mon: Argument.Monitor.t) mon_path sig_path f_path = match mon with
+  | MonPoly -> Core_unix.open_process_in (mon_path ^ "-sig " ^ sig_path ^ " -formula " ^ f_path)
+  | VeriMon -> failwith "missing"
+  | DejaVu -> failwith "missing"
+  | TimelyMon -> failwith "missing"
