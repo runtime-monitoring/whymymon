@@ -57,3 +57,6 @@ let to_json db =
   "[ " ^ (String.concat ~sep:", "
             (List.rev(Set.fold db ~init:[] ~f:(fun acc evt ->
                           Event.to_json evt :: acc)))) ^ "] "
+
+let to_monpoly db =
+  Set.fold db ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ " ") ^ ";"

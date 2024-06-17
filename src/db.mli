@@ -31,3 +31,5 @@ val add_event: t -> Event.t -> t
 val to_string: t -> string
 
 val to_json: t -> string
+
+val to_monpoly: t -> string
