@@ -168,7 +168,7 @@ module Trace = struct
       match pb.token with
       | RPA -> Parsebuf.next pb;
                (if Int.equal (Queue.length q) (Parsebuf.arity pb) then
-                  let evt = Db.event (Parsebuf.pred pb) (Queue.to_list q) in
+                  let evt = Db.Event.create (Parsebuf.pred pb) (Queue.to_list q) in
                   Parsebuf.add_event evt pb;
                   (match pb.token with
                    | LPA -> Parsebuf.next pb; parse_tuple ()
