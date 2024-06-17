@@ -16,26 +16,26 @@ type period = PAST | FUTURE
 
 module Dbs = struct
 
-  type cell = timepoint * int * Db.t
+  type cell = timepoint * int * (Db.Event.t, Db.Event.comparator_witness) Set.t
 
   type row = cell list
 
-  let row tp db f : row =
+  let row tp evts f : row =
     List.rev (List.foldi (Set.to_list (Formula.pred_names f)) ~init:[] ~f:(fun idx acc r ->
-                  (tp, idx, Set.filter db ~f:(fun (r', _) -> String.equal r r')) :: acc))
+                  (tp, idx, Set.filter evts ~f:(fun (r', _) -> String.equal r r')) :: acc))
 
-  let cell_to_json indent tp idx db =
+  let cell_to_json indent tp idx evts =
     (Printf.sprintf "%s{\n" indent) ^
       (Printf.sprintf "%s\"tp\": %d,\n" (indent ^ (String.make 4 ' ')) tp) ^
         (Printf.sprintf "%s\"col\": %d,\n" (indent ^ (String.make 4 ' ')) idx) ^
-          (Printf.sprintf "%s\"db\": %s\n" (indent ^ (String.make 4 ' ')) (Db.to_json db)) ^
+          (Printf.sprintf "%s\"db\": %s\n" (indent ^ (String.make 4 ' ')) (Db.evts_to_json evts)) ^
             (Printf.sprintf "%s}" indent)
 
-  let to_json tp db f =
-    let preds_row = row tp db f in
+  let to_json tp evts f =
+    let preds_row = row tp evts f in
     (Printf.sprintf "%s\"dbs_row\": [\n" (String.make 8 ' ')) ^
-      (String.concat ~sep:",\n" (List.map preds_row ~f:(fun (tp, idx, db) ->
-                                     cell_to_json (String.make 8 ' ') tp idx db))) ^
+      (String.concat ~sep:",\n" (List.map preds_row ~f:(fun (tp, idx, evts) ->
+                                     cell_to_json (String.make 8 ' ') tp idx evts))) ^
         (Printf.sprintf "]")
 
 end

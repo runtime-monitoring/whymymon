@@ -27,14 +27,12 @@ module Parsebuf = struct
   type t = { lexbuf: Lexing.lexbuf
            ; mutable token: Other_lexer.token
            ; mutable pred_sig: Pred.Sig.t option
-           ; mutable ts: int
            ; mutable db: Db.t }
 
   let init lexbuf = { lexbuf = lexbuf
                     ; token = Other_lexer.token lexbuf
                     ; pred_sig = None
-                    ; ts = -1
-                    ; db = Db.create [] }
+                    ; db = Db.create (-1) [] }
 
   let next pb = pb.token <- Other_lexer.token pb.lexbuf
 
@@ -43,8 +41,7 @@ module Parsebuf = struct
   let pred pb = fst (Option.value_exn pb.pred_sig)
 
   let clean pb = { pb with pred_sig = None
-                         ; ts = -1
-                         ; db = Db.create [] }
+                         ; db = Db.create (-1) [] }
 
   let add_event evt pb = pb.db <- Db.add_event pb.db evt
 

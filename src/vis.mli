@@ -7,9 +7,11 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Base
+
 module Dbs : sig
 
-  val to_json: Etc.timepoint -> Db.t -> Formula.t -> string
+  val to_json: Etc.timepoint -> (Db.Event.t, Db.Event.comparator_witness) Set.t -> Formula.t -> string
 
 end
 

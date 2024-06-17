@@ -1,9 +1,9 @@
 (*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
+(*     This is part of DuoMon, and it is distributed under the     *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
-(*  Copyright 2023:                                                *)
+(*  Copyright 2024:                                                *)
 (*  Dmitriy Traytel (UCPH)                                         *)
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
@@ -16,6 +16,16 @@ module Event = struct
   module T = struct
 
     type t = string * Dom.t list [@@deriving compare, sexp_of]
+
+    let create name consts =
+      let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
+      if pred_sig.arity = List.length consts then
+        (name, List.map2_exn pred_sig.ntconsts consts
+                 ~f:(fun tc c -> match snd tc with
+                                 | TInt -> Dom.Int (Int.of_string c)
+                                 | TStr -> Str c
+                                 | TFloat -> Float (Float.of_string c)))
+      else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))
 
     let to_string (name, ds) = Printf.sprintf "%s(%s)" name (Dom.list_to_string ds)
 
@@ -34,26 +44,17 @@ module Event = struct
 
 end
 
-type t = (Event.t, Event.comparator_witness) Set.t
+type t = timestamp * (Event.t, Event.comparator_witness) Set.t
 
-let create evtl = Set.of_list (module Event) evtl
+let create ts evtl = (ts, Set.of_list (module Event) evtl)
 
-let event name consts =
-  let pred_sig = Hashtbl.find_exn Pred.Sig.table name in
-  if pred_sig.arity = List.length consts then
-    (name, List.map2_exn pred_sig.ntconsts consts
-             ~f:(fun tc c -> match snd tc with
-                             | TInt -> Dom.Int (Int.of_string c)
-                             | TStr -> Str c
-                             | TFloat -> Float (Float.of_string c)))
-  else raise (Invalid_argument (Printf.sprintf "predicate %s has arity %d" name pred_sig.arity))
-
-let add_event db evt = Set.add db evt
+let add_event db evt = (fst db, Set.add (snd db) evt)
 
 let to_string db =
-  Set.fold db ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n")
+  "@" ^ Int.to_string (fst db) ^
+    Set.fold (snd db) ~init:"" ~f:(fun acc evt -> acc ^ Event.to_string evt ^ "\n")
 
-let to_json db =
+let evts_to_json evts =
   "[ " ^ (String.concat ~sep:", "
-            (List.rev(Set.fold db ~init:[] ~f:(fun acc evt ->
+            (List.rev(Set.fold evts ~init:[] ~f:(fun acc evt ->
                           Event.to_json evt :: acc)))) ^ "] "

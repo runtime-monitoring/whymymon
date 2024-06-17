@@ -13,18 +13,21 @@ open Pred
 open Etc
 
 module Event : sig
+
   type t = string * Dom.t list [@@deriving compare, sexp_of]
+
+  val create: string -> string list -> t
+
   include Comparable.S with type t := t
+
 end
 
-type t = (Event.t, Event.comparator_witness) Set.t
+type t = timestamp * (Event.t, Event.comparator_witness) Set.t
 
-val create: Event.t list -> t
-
-val event: string -> string list -> Event.t
+val create: timestamp -> Event.t list -> t
 
 val add_event: t -> Event.t -> t
 
 val to_string: t -> string
 
-val to_json: t -> string
+val evts_to_json: (Event.t, Event.comparator_witness) Set.t -> string
