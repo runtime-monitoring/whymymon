@@ -7,10 +7,13 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Base
+
 module State : sig
 
   type t
 
 end
 
-val exec: unit -> unit
+val exec: Argument.Monitor.t -> string -> Argument.Preference.t ->
+          Argument.Mode.t -> string -> Formula.t -> string -> Stdio.In_channel.t -> unit

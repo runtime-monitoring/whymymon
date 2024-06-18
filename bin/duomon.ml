@@ -39,6 +39,7 @@ module Duomon = struct
        \t\t dejavu
        \t\t monpoly
        \t\t timelymon
+       \t\t verimon
        \t -path
        \t\t <file>             - chosen monitor's executable
        \t -pref
@@ -63,7 +64,7 @@ module Duomon = struct
          process_args_rec args
       | ("-path" :: p :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         mon_path_ref := p;
+         mon_path_ref := (Filename_unix.realpath p);
          process_args_rec args
       | ("-pref" :: p :: args) ->
          pref_ref := Argument.Preference.of_string p;
@@ -73,12 +74,12 @@ module Duomon = struct
          process_args_rec args
       | ("-sig" :: sf :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         sig_path_ref := sf;
+         sig_path_ref := (Filename_unix.realpath sf);
          Other_parser.Sig.parse_from_channel sf;
          process_args_rec args
       | ("-formula" :: f :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         formula_path_ref := f;
+         formula_path_ref := (Filename_unix.realpath f);
          In_channel.with_file f ~f:(fun inc ->
              let lexbuf = Lexing.from_channel inc in
              formula_ref := try Some(Formula_parser.formula Formula_lexer.token lexbuf)
@@ -99,10 +100,10 @@ module Duomon = struct
   let _ =
     try
       process_args (List.tl_exn (Array.to_list Sys.argv));
-      let formula = Option.value_exn !formula_ref in
       match !mon_ref with
-      | DejaVu -> (* Monitor.exec !mon_ref !measure_ref formula !Etc.trace_ref *) ()
-      | MonPoly -> (* Monitor.exec !mon_ref !measure_ref formula !Etc.trace_ref *) ()
+      | MonPoly -> Monitor.exec !mon_ref !mon_path_ref !pref_ref !mode_ref !sig_path_ref
+                     (Option.value_exn !formula_ref) !formula_path_ref !trace_ref
+      | DejaVu -> ()
       | TimelyMon -> ()
     with End_of_file -> Out_channel.close !outc_ref; exit 0
 
