@@ -208,7 +208,17 @@ let explain v trace pol tp f =
       None in
   eval pol tp f
 
-let exec () = ()
-
-let start mon mon_path pref mode sig_path f f_path trace =
-  ()
+(* let exec mon mon_path pref mode sig_path f f_path trace_c = *)
+(*   let vars = Set.elements (Formula.fv f) in *)
+(*   let in_c = Emonitor.start mon mon_path sig_path f_path in *)
+(*   let rec step pb_opt = *)
+(*     match Other_parser.Trace.parse_from_channel trace_c pb_opt with *)
+(*     | Finished -> () *)
+(*     | Skipped (pb, msg) -> Stdio.printf "The parser skipped an event because %s" msg; *)
+(*                            step (Some(pb))  *)
+(*     | Processed pb -> let (tstp_expls, ms) = mstep mode vars pb.ts pb.db ms in *)
+(*                       out tstp_expls ms; *)
+(*                       step (Some(pb)) ms in *)
+(*   let mf = init f in *)
+(*   let ms = MState.init mf in *)
+(*   step None ms *)
