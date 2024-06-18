@@ -8,21 +8,17 @@
 (*******************************************************************)
 
 open Base
+open Etc
 
 type t = (string, Dom.t, String.comparator_witness) Map.t
 
-let parse_from_monpoly vars line =
-  let subs = List.map (String.split line ~on:')') ~f:(String.lstrip ~drop:(fun c -> Char.equal c '(')) in
-  List.fold subs ~init:(Map.empty (module String)) ~f:(fun map sub ->
-      let doms = List.map (String.split sub ~on:',') ~f:(fun s ->
-                     if String.is_prefix s ~prefix:"\"" then
-                       Dom.Str (String.strip ~drop:(fun c -> Char.equal c '\"') s)
-                     else Dom.Int (Int.of_string s)) in
-      let map = List.fold2 vars doms ~init:map ~f:(fun map' x d ->
-                    Map.add_exn map' ~key:x ~data:d) in
-      match map with
-      | Ok m -> m
-      | Unequal_lengths ->
-         raise (Invalid_argument
-                  (Printf.sprintf "number of free variables %d does not match MonPoly's output (%s)"
-                     (List.length vars) sub)))
+let init () = Map.empty (module String)
+
+let add v x d = match Map.add v ~key:x ~data:d with
+  | `Ok v -> v
+  | `Duplicate ->
+     raise (Invalid_argument (Printf.sprintf "variable %s already has a mapping" x))
+
+let to_string v =
+  Map.fold v ~init:"Assignment:\n" ~f:(fun ~key:x ~data:d s ->
+      s ^ Printf.sprintf "%s ↦ %s\n" x (Dom.to_string d))

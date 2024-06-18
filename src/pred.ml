@@ -74,10 +74,13 @@ module Sig = struct
 
   let table: (string, props) Hashtbl.t = Hashtbl.create (module String)
 
-  let add p_name ntconsts =
-    Hashtbl.add_exn table ~key:p_name ~data:{ arity = List.length ntconsts; ntconsts }
+  let add p_name ntconsts = Hashtbl.add_exn table ~key:p_name ~data:{ arity = List.length ntconsts; ntconsts }
 
   let vars name = List.map (Hashtbl.find_exn table name).ntconsts ~f:fst
+
+  let var_tt x = List.find_map_exn (Hashtbl.to_alist table) ~f:(fun (_, props) ->
+                     List.find_map props.ntconsts ~f:(fun (y, tt) ->
+                         if String.equal x y then Some(tt) else None))
 
   let print_table () =
     Hashtbl.iteri table ~f:(fun ~key:n ~data:ps ->

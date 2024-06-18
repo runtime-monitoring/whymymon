@@ -7,12 +7,10 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-open Base
+open Etc
 
-type t
+module Monpoly : sig
 
-val init: unit -> t
+  val parse: string -> timepoint * string list list
 
-val add: t -> string -> Dom.t -> t
-
-val to_string: t -> string
+end

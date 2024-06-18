@@ -48,6 +48,8 @@ module Sig : sig
 
   val vars: string -> string list
 
+  val var_tt: string -> Dom.tt
+
   val print_table: unit -> unit
 
 end

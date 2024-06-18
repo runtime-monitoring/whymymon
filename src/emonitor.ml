@@ -7,17 +7,10 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+open Base
 open Stdio
 
 (* TODO: Rewrite this using functors/first-class modules to distinguish monitors *)
-
-module Monpoly = struct
-
-  (* @1308477599 (time point 3): ("Alice",163) ("Charlie",152) ("Charlie",163) *)
-  let parse vars lines =
-
-
-end
 
 let feed (mon: Argument.Monitor.t) out_c ts db =
   (match mon with
@@ -27,10 +20,16 @@ let feed (mon: Argument.Monitor.t) out_c ts db =
    | TimelyMon -> failwith "missing");
   Caml.flush out_c
 
-let read (mon: Argument.Monitor.t) in_c =
+let read (mon: Argument.Monitor.t) in_c vars =
   let lines = In_channel.input_lines in_c in
   match mon with
-  | MonPoly -> List.fold lines ~init:Monpoly.parse
+  | MonPoly -> List.map lines ~f:(fun line ->
+                   let (tp, sss) = Emonitor_parser.Monpoly.parse line in
+                   List.map sss ~f:(fun ss ->
+                       let v = List.fold2_exn vars ss ~init:(Assignment.init ()) ~f:(fun v x s ->
+                                   let d = Dom.string_to_t s (Pred.Sig.var_tt x) in
+                                   Assignment.add v x d) in
+                       Stdio.printf "%s" (Assignment.to_string v); v))
   | VeriMon -> failwith "missing"
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"

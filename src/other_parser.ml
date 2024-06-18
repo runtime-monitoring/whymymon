@@ -27,7 +27,7 @@ module Parsebuf = struct
   type t = { lexbuf: Lexing.lexbuf
            ; mutable token: Other_lexer.token
            ; mutable pred_sig: Pred.Sig.t option
-           ; mutable ts: int
+           ; mutable ts: timestamp
            ; mutable db: Db.t }
 
   let init lexbuf = { lexbuf = lexbuf
@@ -47,8 +47,6 @@ module Parsebuf = struct
                          ; db = Db.create [] }
 
   let add_event evt pb = pb.db <- Db.add_event pb.db evt
-
-  let clear pb = pb
 
 end
 
