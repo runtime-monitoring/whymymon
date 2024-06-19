@@ -24,7 +24,7 @@ let feed (mon: Argument.Monitor.t) out_c ts db =
   Caml.flush out_c
 
 let read (mon: Argument.Monitor.t) in_c vars =
-  (* Blocking read *)
+  (* Blocking read, rewrite this with Eio *)
   let line = In_channel.input_line in_c in
   match line with
   | None -> []
