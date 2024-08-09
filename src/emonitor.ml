@@ -9,8 +9,20 @@
 
 open Base
 open Stdio
+open Eio.Std
 
 (* TODO: Rewrite this using functors/first-class modules to distinguish monitors *)
+
+(* Example from Eio library *)
+(* let cli ~stdin ~stdout = *)
+(*   let buf = Eio.Buf_read.of_flow stdin ~initial_size:100 ~max_size:1_000_000 in *)
+(*   while true do *)
+(*     let line = Eio.Buf_read.line buf in *)
+(*     traceln "> %s" line; *)
+(*     match line with *)
+(*     | "h" | "help" -> Eio.Flow.copy_string "It's just an example\n" stdout *)
+(*     | x -> Eio.Flow.copy_string (Fmt.str "Unknown command %S\n" x) stdout *)
+(*   done *)
 
 let feed (mon: Argument.Monitor.t) out_c ts db =
   (match mon with
@@ -43,6 +55,7 @@ let read (mon: Argument.Monitor.t) in_c vars =
 
 let start (mon: Argument.Monitor.t) mon_path sig_path f_path = match mon with
   | MonPoly -> Stdio.printf "%s\n" (mon_path ^ " -sig " ^ sig_path ^ " -formula " ^ f_path);
+               (* This should be replaced with Eio.Process.run and all stdin/stdout with Flows *)
                Core_unix.open_process (mon_path ^ " -sig " ^ sig_path ^ " -formula " ^ f_path)
   | VeriMon -> failwith "missing"
   | DejaVu -> failwith "missing"
