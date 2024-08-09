@@ -18,7 +18,7 @@ module Monitor = struct
     | "verimon" | "VeriMon" | "Verimon" -> VeriMon
     | "dejavu" | "DejaVu" | "Dejavu" -> DejaVu
     | "timelymon" | "TimelyMon" | "Timelymon" -> TimelyMon
-    | _ -> Caml.Format.eprintf "monitors supported: monpoly, dejavu or timelymon\n%!";
+    | _ -> Format.eprintf "monitors supported: monpoly, dejavu or timelymon\n%!";
            raise (Invalid_argument "undefined monitor")
 
   let to_string = function
@@ -36,7 +36,7 @@ module Preference = struct
   let of_string = function
     | "sat" | "satisfaction" -> Satisfaction
     | "vio" | "violation" -> Violation
-    | _ -> Caml.Format.eprintf "your preference should be either: satisfaction or violation\n%!";
+    | _ -> Format.eprintf "your preference should be either: satisfaction or violation\n%!";
            raise (Invalid_argument "undefined preference")
 
   let to_string = function
@@ -55,7 +55,7 @@ module Mode = struct
     | "latex" -> LaTeX
     | "debug" -> Debug
     | "debugvis" -> DebugVis
-    | _ -> Caml.Format.eprintf "modes: unverified or verified\n%!";
+    | _ -> Format.eprintf "modes: unverified or verified\n%!";
            raise (Invalid_argument "undefined mode")
 
   let to_string = function

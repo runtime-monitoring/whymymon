@@ -21,7 +21,7 @@ let feed (mon: Argument.Monitor.t) out_c ts db =
    | VeriMon -> failwith "missing"
    | DejaVu -> failwith "missing"
    | TimelyMon -> failwith "missing");
-  Caml.flush out_c
+  flush out_c
 
 let read (mon: Argument.Monitor.t) in_c vars =
   (* Blocking read, rewrite this with Eio *)

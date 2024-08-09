@@ -31,7 +31,7 @@ module WhyMyMon = struct
   let nec_arg_count = ref 0
 
   let usage () =
-    Caml.Format.eprintf
+    Format.eprintf
       "usage: ./whymymon.exe [-monitor <monitor>] [-path <file>] [-measure <measure>]
                            [-sig <file>] [-formula <file>] [-log <file>]
        arguments:
