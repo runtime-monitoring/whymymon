@@ -1,5 +1,5 @@
 (*******************************************************************)
-(*     This is part of DuoMon, and it is distributed under the     *)
+(*    This is part of WhyMyMon, and it is distributed under the    *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
@@ -13,7 +13,7 @@ open Stdio
 open Monitor_lib
 
 (* TODO: This module must be rewritten using the Command module from Core *)
-module Duomon = struct
+module WhyMyMon = struct
 
   let mon_path_ref = ref ""
   let sig_path_ref = ref ""
@@ -32,7 +32,7 @@ module Duomon = struct
 
   let usage () =
     Caml.Format.eprintf
-      "usage: ./duomon.exe [-monitor <monitor>] [-path <file>] [-measure <measure>]
+      "usage: ./whymymon.exe [-monitor <monitor>] [-path <file>] [-measure <measure>]
                            [-sig <file>] [-formula <file>] [-log <file>]
        arguments:
        \t -monitor

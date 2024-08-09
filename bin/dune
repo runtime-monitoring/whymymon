@@ -1,5 +1,5 @@
 (executable
- (public_name duomon)
- (name duomon)
+ (public_name whymymon)
+ (name whymymon)
  (libraries monitor_lib)
  (promote (until-clean)))

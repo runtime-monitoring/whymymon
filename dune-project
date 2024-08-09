@@ -1,11 +1,11 @@
 (lang dune 3.0)
 
-(name duomon)
+(name whymymon)
 
 (generate_opam_files true)
 
 (source
- (github runtime-monitoring/duomon))
+ (github runtime-monitoring/whymymon))
 
 (authors
  "Leonardo Lima <hi@nameless.computer>"
@@ -22,7 +22,7 @@
 (using menhir 2.0)
 
 (package
- (name duomon)
+ (name whymymon)
  (synopsis "")
  (description "")
  (depends
