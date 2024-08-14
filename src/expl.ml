@@ -27,11 +27,17 @@ module Part = struct
 
   let length part = List.length part
 
+  let rev part = List.rev part
+
   let map part f = List.map part ~f:(fun (s, p) -> (s, f p))
 
   let map2 part f = List.map part ~f:(fun (s, p) -> f (s, p))
 
+  let map2_list = map2
+
   let fold_left part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
+
+  let fold_map_list part init f = List.fold_map part ~init:init ~f
 
   let filter part f = List.filter part ~f:(fun (_, p) -> f p)
 

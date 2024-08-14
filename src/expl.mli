@@ -17,13 +17,15 @@ module Part : sig
 
   type sub = (Dom.t, Dom.comparator_witness) Setc.t
 
-  type 'a t = (sub * 'a) list
+  type 'a t
 
   val trivial: 'a -> 'a t
   val length: 'a t -> int
+  val rev: 'a t -> 'a t
   val map: 'a t -> ('a -> 'b) -> 'b t
-  val map2: 'a t -> (sub * 'a -> sub * 'a) -> 'a t
+  val map2_list: 'a t -> (sub * 'a -> 'b) -> 'b list
   val fold_left: 'a t -> 'b -> ('b -> 'a -> 'b) -> 'b
+  val fold_map_list: 'a t -> 'b -> ('b -> sub * 'a -> 'b * 'd) -> 'b * 'd list
   val filter: 'a t -> ('a -> bool) -> 'a t
   val exists: 'a t -> ('a -> bool) -> bool
   val for_all: 'a t -> ('a -> bool) -> bool

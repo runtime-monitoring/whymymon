@@ -165,7 +165,7 @@ module Expl = struct
     | Forall (_, f'), S (SForall (x, part)) ->
        let sps_idx = idx+1 in
        let row' = List.filter row ~f:(fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
-       let (idx', part_tbl) = List.fold_map part ~init:sps_idx ~f:(fun i (s, sp) ->
+       let (idx', part_tbl) = Expl.Part.fold_map_list part sps_idx (fun i (s, sp) ->
                                   let (row', i') = ssubfs_cell_row row' sps_idx f' (S sp) in
                                   let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
                                   let cells = [(Expl.Proof.s_at sp, sps_idx, None, Boolean true)] in
@@ -285,7 +285,7 @@ module Expl = struct
     | Exists (_, f'), V (VExists (x, part)) ->
        let vps_idx = idx+1 in
        let row' = List.filter row ~f:(fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
-       let (idx', part_tbl) = List.fold_map part ~init:vps_idx ~f:(fun i (s, vp) ->
+       let (idx', part_tbl) = Expl.Part.fold_map_list part vps_idx (fun i (s, vp) ->
                                   let (row', i') = ssubfs_cell_row row' vps_idx f' (V vp) in
                                   let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
                                   let cells = [(Expl.Proof.v_at vp, vps_idx, None, Boolean false)] in
@@ -370,7 +370,7 @@ module Expl = struct
 
   let rec expl_cell row idx (f: Formula.t) (expl: Expl.t) : cell_expl = match expl with
     | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row row idx f pt)))
-    | Node (x, part) -> Expl (x, List.map (List.rev part) ~f:(fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
+    | Node (x, part) -> Expl (x, Expl.Part.map2_list (Expl.Part.rev part) (fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
 
   let inner_cells_to_json indent cells =
     if List.is_empty cells then " []"

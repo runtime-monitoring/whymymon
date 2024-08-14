@@ -54,11 +54,11 @@ module Checker_interface = struct
     | Coset cs -> List.rev (List.fold cs ~init:[] ~f:(fun acc l -> l :: acc))
 
   let rec convert_sp_part part =
-    let part_lst = List.map part ~f:(fun (coset, sp) ->
+    let part_lst = Part.map2_list part (fun (coset, sp) ->
                        (to_fset coset, convert_sp sp)) in
     abs_part (part_lst)
   and convert_vp_part part =
-    let part_lst = List.map part ~f:(fun (coset, vp) ->
+    let part_lst = Part.map2_list part (fun (coset, vp) ->
                        (to_fset coset, convert_vp vp)) in
     abs_part (part_lst)
   and convert_sp (sp: Proof.sp) : ((string, event_data) sproof) = match sp with
@@ -136,7 +136,7 @@ module Checker_interface = struct
        VUntilInf (nat_of_int tp, nat_of_int ltp, vp2s')
 
   let rec convert_pdt_part part =
-    let part_lst = List.map part ~f:(fun (coset, pdt) ->
+    let part_lst = Part.map2_list part (fun (coset, pdt) ->
                        (to_fset coset, convert_pdt pdt)) in
     abs_part (part_lst)
   and convert_pdt = function
