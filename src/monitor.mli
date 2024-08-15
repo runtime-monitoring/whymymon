@@ -16,4 +16,4 @@ module State : sig
 end
 
 val exec: Argument.Monitor.t -> string -> Argument.Preference.t ->
-          Argument.Mode.t -> string -> Formula.t -> string -> Stdio.In_channel.t -> unit
+          Argument.Mode.t -> string -> Formula.t -> string -> Etc.stream -> unit

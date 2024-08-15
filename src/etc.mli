@@ -17,6 +17,8 @@ val debug: bool ref
 type timepoint = int
 type timestamp = int
 
+type stream = Path of string | Flow
+
 val eat: string -> string -> string
 val paren: int -> int -> ('b, 'c, 'd, 'e, 'f, 'g) format6 -> ('b, 'c, 'd, 'e, 'f, 'g) format6
 val is_digit: char -> bool

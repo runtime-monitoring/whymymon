@@ -11,6 +11,7 @@
 open Base
 open Stdio
 open Monitor_lib
+open Monitor_lib.Etc
 
 (* TODO: This module must be rewritten using the Command module from Core *)
 module WhyMyMon = struct
@@ -23,7 +24,7 @@ module WhyMyMon = struct
   let pref_ref = ref Argument.Preference.Violation
   let mode_ref = ref Argument.Mode.Unverified
   let formula_ref = ref None
-  let trace_ref = ref Stdio.In_channel.stdin
+  let stream_ref = ref Flow
   let logstr_ref = ref ""
 
   let outc_ref = ref Stdio.Out_channel.stdout
@@ -53,7 +54,7 @@ module WhyMyMon = struct
        \t -formula
        \t\t <file> or <string> - MFOTL formula
        \t -log
-       \t\t <file>             - specify log file as trace (default: stdin)\n%!";
+       \t\t <file>             - specify log file as stream (default: stdin)\n%!";
     exit 0
 
   let process_args =
@@ -88,7 +89,7 @@ module WhyMyMon = struct
                               Stdlib.flush_all (); None);
          process_args_rec args
       | ("-log" :: f :: args) ->
-         trace_ref := In_channel.create f;
+         stream_ref := Path f;
          process_args_rec args
       | ("-logstr" :: logs :: args) ->
          logstr_ref := logs;
@@ -102,7 +103,7 @@ module WhyMyMon = struct
       process_args (List.tl_exn (Array.to_list Sys.argv));
       match !mon_ref with
       | MonPoly -> Monitor.exec !mon_ref !mon_path_ref !pref_ref !mode_ref !sig_path_ref
-                     (Option.value_exn !formula_ref) !formula_path_ref !trace_ref
+                     (Option.value_exn !formula_ref) !formula_path_ref !stream_ref
       | DejaVu -> ()
       | TimelyMon -> ()
     with End_of_file -> Out_channel.close !outc_ref; exit 0

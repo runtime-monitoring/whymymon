@@ -17,6 +17,8 @@ let debug = ref false
 type timepoint = int
 type timestamp = int
 
+type stream = Path of string | Flow
+
 let eat s t = s ^ (String.strip t)
 let paren h k x = if h>k then "("^^x^^")" else x
 let is_digit = function
