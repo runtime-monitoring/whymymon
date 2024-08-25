@@ -208,15 +208,21 @@ let explain v trace pol tp f =
       None in
   eval pol tp f
 
-let exec mon mon_path pref mode sig_path f f_path stream_c = ()
-  (* let vars = Set.elements (Formula.fv f) in *)
-  (* let (in_c, out_c) = Emonitor.start mon mon_path sig_path f_path in *)
-  (* let rec step pb_opt = *)
-  (*   match Other_parser.Trace.parse_from_channel trace_c pb_opt with *)
-  (*   | Finished -> () *)
-  (*   | Skipped (pb, msg) -> Stdio.printf "The parser skipped an event because %s" msg; *)
-  (*                          step (Some(pb)) *)
-  (*   | Processed pb -> Emonitor.feed mon out_c pb.ts pb.db; *)
-  (*                     let _ = Emonitor.read mon in_c vars in *)
-  (*                     step (Some(pb)) in *)
-  (* step None *)
+let exec mon mon_path pref mode sig_path f f_path stream_c =
+  let vars = Set.elements (Formula.fv f) in
+  let ( / ) = Eio.Path.( / ) in
+  Eio_main.run @@ fun env ->
+
+
+
+
+  let (in_c, out_c) = Emonitor.start mon mon_path sig_path f_path in
+  let rec step pb_opt =
+    match Other_parser.Trace.parse_from_channel trace_c pb_opt with
+    | Finished -> ()
+    | Skipped (pb, msg) -> Stdio.printf "The parser skipped an event because %s" msg;
+                           step (Some(pb))
+    | Processed pb -> Emonitor.feed mon out_c pb.ts pb.db;
+                      let _ = Emonitor.read mon in_c vars in
+                      step (Some(pb)) in
+  step None

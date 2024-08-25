@@ -38,14 +38,14 @@ module WhyMyMon = struct
        arguments:
        \t -monitor
        \t\t dejavu
-       \t\t monpoly
+       \t\t monpoly            - (default)
        \t\t timelymon
        \t\t verimon
        \t -path
-       \t\t <file>             - chosen monitor's executable
+       \t\t <file>             - chosen monitor's executable path
        \t -pref
-       \t\t vio                - detect violations (default)
-       \t\t sat                - detect satisfactions
+       \t\t vio                - explain violations (default)
+       \t\t sat                - explain satisfactions
        \t -mode
        \t\t unverified         - (default)
        \t\t verified           - check output with formally verified checker

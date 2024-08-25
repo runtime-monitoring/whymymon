@@ -10,7 +10,7 @@
 open Base
 open Stdio
 
-(* TODO: Rewrite this using functors/first-class modules to distinguish monitors *)
+(* TODO: Rewrite this using functors/first-class modules to distinguish monitors (or maybe not) *)
 
 let write_line (mon: Argument.Monitor.t) out_c ts db =
   (match mon with
@@ -35,10 +35,10 @@ let read_line (mon: Argument.Monitor.t) vars line =
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"
 
-let exec (mon: Argument.Monitor.t) mon_path sig_path f_path = match mon with
-  | MonPoly -> Stdio.printf "%s\n" (mon_path ^ " -sig " ^ sig_path ^ " -formula " ^ f_path);
+let command (mon: Argument.Monitor.t) mon_path sig_path f_path = match mon with
+  | MonPoly -> mon_path ^ " -sig " ^ sig_path ^ " -formula " ^ f_path "\n"
                (* This should be replaced with Eio.Process.run and all stdin/stdout with Flows *)
-               Core_unix.open_process (mon_path ^ " -sig " ^ sig_path ^ " -formula " ^ f_path)
+               (* Core_unix.open_process (mon_path ^ " -sig " ^ sig_path ^ " -formula " ^ f_path) *)
   | VeriMon -> failwith "missing"
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"
