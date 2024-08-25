@@ -7,6 +7,6 @@
 
 (library
  (name monitor_lib)
- (libraries core_kernel base zarith core_unix core_unix.filename_unix eio_main)
+ (libraries core_kernel base zarith eio_main)
  ;; debug menhirLib
  (preprocess (pps ppx_jane)))
