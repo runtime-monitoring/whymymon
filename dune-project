@@ -17,7 +17,7 @@
 
 (license LICENSE)
 
-(documentation https://url/to/documentation)
+(documentation https://github.com/runtime-monitoring/whymymon)
 
 (using menhir 2.0)
 
@@ -26,13 +26,13 @@
  (synopsis "")
  (description "")
  (depends
-  (ocaml (>= 4.11))
+  (ocaml (>= 5.2.0))
   (dune (>= 3.0))
-  (core_kernel (>= v0.14))
-  (base (>= v0.14))
-  (menhir (>= 20220210))
-  (zarith (>= 1.11))
-  (zarith_stubs_js (>= v0.14.1)))
+  (core_kernel (>= v0.17.0))
+  (base (>= v0.17.1))
+  (menhir (>= 20240715))
+  (zarith (>= 1.14))
+  (zarith_stubs_js (>= v0.17.0)))
  (tags
   (explainable "first-order" runtime monitoring)))
 
