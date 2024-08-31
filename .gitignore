@@ -23,6 +23,9 @@ examples/all/nokia/all.log
 tools/*.csv
 tools/*.log
 
+# third party
+third-party/monpoly
+
 # misc
 *#*#
 *.bc*
