@@ -11,6 +11,7 @@ open Core
 open Etc
 open Expl
 open Pred
+open Eio.Std
 
 let do_neg = function
   | Proof.S sp -> Proof.V (VNeg sp)
@@ -208,21 +209,33 @@ let explain v trace pol tp f =
       None in
   eval pol tp f
 
-let exec mon mon_path pref mode sig_path f f_path stream_c =
+
+(* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
+let exec mon ~mon_path ~stream_path ?sig_path f pref mode =
   let vars = Set.elements (Formula.fv f) in
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
+  (* Formula conversion *)
+  let f_path = Eio.Stdenv.cwd env / "tmp/f.mfotl" in
+  Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
+  traceln "Saving formula in %a" Eio.Path.pp f_path;
+  (* Start external monitor process *)
+  let proc_mgr = Eio.Stdenv.process_mgr env in
+  Eio.Process.run proc_mgr (Emonitor.command mon ~mon_path ?sig_path ~f_path:(Eio.Path.native_exn f_path));
+  traceln "Running process with following command: %s"
+    (Etc.string_list_to_string (Emonitor.command mon ~mon_path ?sig_path ~f_path:(Eio.Path.native_exn f_path)))
+  (* let spath = Eio.Stdenv.cwd env / stream_path in *)
+  (* Eio.Path.with_lines stream_path *)
 
 
 
-
-  let (in_c, out_c) = Emonitor.start mon mon_path sig_path f_path in
-  let rec step pb_opt =
-    match Other_parser.Trace.parse_from_channel trace_c pb_opt with
-    | Finished -> ()
-    | Skipped (pb, msg) -> Stdio.printf "The parser skipped an event because %s" msg;
-                           step (Some(pb))
-    | Processed pb -> Emonitor.feed mon out_c pb.ts pb.db;
-                      let _ = Emonitor.read mon in_c vars in
-                      step (Some(pb)) in
-  step None
+  (* let (in_c, out_c) = Emonitor.start mon mon_path sig_path f_path in *)
+  (* let rec step pb_opt = *)
+  (*   match Other_parser.Trace.parse_from_channel trace_c pb_opt with *)
+  (*   | Finished -> () *)
+  (*   | Skipped (pb, msg) -> Stdio.printf "The parser skipped an event because %s" msg; *)
+  (*                          step (Some(pb)) *)
+  (*   | Processed pb -> Emonitor.feed mon out_c pb.ts pb.db; *)
+  (*                     let _ = Emonitor.read mon in_c vars in *)
+  (*                     step (Some(pb)) in *)
+  (* step None *)

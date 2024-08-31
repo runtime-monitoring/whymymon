@@ -8,20 +8,17 @@
 (*******************************************************************)
 
 open Base
-open Stdio
 
 (* TODO: Rewrite this using functors/first-class modules to distinguish monitors (or maybe not) *)
-
 let write_line (mon: Argument.Monitor.t) out_c ts db =
-  (match mon with
-   | MonPoly -> let ev = "@" ^ (Int.to_string ts) ^ " " ^ Db.to_monpoly db in
-                Stdio.printf "%s\n" ev;
-                Stdlib.flush_all ();
-                Out_channel.output_string out_c ev
-   | VeriMon -> failwith "missing"
-   | DejaVu -> failwith "missing"
-   | TimelyMon -> failwith "missing");
-  flush out_c
+  match mon with
+  | MonPoly -> let ev = "@" ^ (Int.to_string ts) ^ " " ^ Db.to_monpoly db in
+               Stdio.printf "%s\n" ev;
+               Stdlib.flush_all ();
+               Out_channel.output_string out_c ev
+  | VeriMon -> failwith "missing"
+  | DejaVu -> failwith "missing"
+  | TimelyMon -> failwith "missing"
 
 let read_line (mon: Argument.Monitor.t) vars line =
   match mon with
@@ -35,15 +32,13 @@ let read_line (mon: Argument.Monitor.t) vars line =
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"
 
-let command (mon: Argument.Monitor.t) mon_path sig_path f_path = match mon with
-  | MonPoly -> mon_path ^ " -sig " ^ sig_path ^ " -formula " ^ f_path "\n"
-               (* This should be replaced with Eio.Process.run and all stdin/stdout with Flows *)
-               (* Core_unix.open_process (mon_path ^ " -sig " ^ sig_path ^ " -formula " ^ f_path) *)
+let command (mon: Argument.Monitor.t) ~mon_path ?sig_path ~f_path = match mon with
+  | MonPoly -> [mon_path; "-sig " ^ (Option.value_exn sig_path); "-formula " ^ f_path];
   | VeriMon -> failwith "missing"
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"
 
-let start (mon: Argument.Monitor.t) mon_path sig_path f_path vars stdin stdout =
+let start (mon: Argument.Monitor.t) ~mon_path sig_path f_path vars stdin stdout =
   let buf = Eio.Buf_read.of_flow stdin ~initial_size:100 ~max_size:1_000_000 in
   while true do
     let line = Eio.Buf_read.line buf in

@@ -24,7 +24,7 @@ module WhyMyMon = struct
   let pref_ref = ref Argument.Preference.Violation
   let mode_ref = ref Argument.Mode.Unverified
   let formula_ref = ref None
-  let stream_ref = ref Flow
+  let stream_path_ref = ref ""
   let logstr_ref = ref ""
 
   let outc_ref = ref Stdio.Out_channel.stdout
@@ -42,7 +42,8 @@ module WhyMyMon = struct
        \t\t timelymon
        \t\t verimon
        \t -path
-       \t\t <file>             - chosen monitor's executable path
+       \t\t <file>             - chosen monitor's executable full path
+       \t -default-path        - consider the default path (folder third-party) for external monitors (overrides -path)
        \t -pref
        \t\t vio                - explain violations (default)
        \t\t sat                - explain satisfactions
@@ -65,7 +66,11 @@ module WhyMyMon = struct
          process_args_rec args
       | ("-path" :: p :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         mon_path_ref := (Filename_unix.realpath p);
+         mon_path_ref := p;
+         process_args_rec args
+      | ("-default-path" :: args) ->
+         nec_arg_count := !nec_arg_count + 1;
+         mon_path_ref := "third-party/" ^ (Argument.Monitor.to_lowercase_string !mon_ref);
          process_args_rec args
       | ("-pref" :: p :: args) ->
          pref_ref := Argument.Preference.of_string p;
@@ -75,12 +80,12 @@ module WhyMyMon = struct
          process_args_rec args
       | ("-sig" :: sf :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         sig_path_ref := (Filename_unix.realpath sf);
+         sig_path_ref := sf;
          Other_parser.Sig.parse_from_channel sf;
          process_args_rec args
       | ("-formula" :: f :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         formula_path_ref := (Filename_unix.realpath f);
+         formula_path_ref := f;
          In_channel.with_file f ~f:(fun inc ->
              let lexbuf = Lexing.from_channel inc in
              formula_ref := try Some(Formula_parser.formula Formula_lexer.token lexbuf)
@@ -89,7 +94,7 @@ module WhyMyMon = struct
                               Stdlib.flush_all (); None);
          process_args_rec args
       | ("-log" :: f :: args) ->
-         stream_ref := Path f;
+         stream_path_ref := f;
          process_args_rec args
       | ("-logstr" :: logs :: args) ->
          logstr_ref := logs;
@@ -102,8 +107,8 @@ module WhyMyMon = struct
     try
       process_args (List.tl_exn (Array.to_list Sys.argv));
       match !mon_ref with
-      | MonPoly -> Monitor.exec !mon_ref !mon_path_ref !pref_ref !mode_ref !sig_path_ref
-                     (Option.value_exn !formula_ref) !formula_path_ref !stream_ref
+      | MonPoly -> Monitor.exec !mon_ref ~mon_path:!mon_path_ref ~stream_path:!stream_path_ref
+                     ~sig_path:!sig_path_ref (Option.value_exn !formula_ref) !pref_ref !mode_ref
       | DejaVu -> ()
       | TimelyMon -> ()
     with End_of_file -> Out_channel.close !outc_ref; exit 0

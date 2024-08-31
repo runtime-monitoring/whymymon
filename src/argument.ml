@@ -21,6 +21,12 @@ module Monitor = struct
     | _ -> Format.eprintf "monitors supported: monpoly, dejavu or timelymon\n%!";
            raise (Invalid_argument "undefined monitor")
 
+  let to_lowercase_string = function
+    | MonPoly -> "monpoly"
+    | VeriMon -> "verimon"
+    | DejaVu -> "dejavu"
+    | TimelyMon -> "timelymon"
+
   let to_string = function
     | MonPoly -> "MonPoly"
     | VeriMon -> "VeriMon"

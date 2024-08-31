@@ -403,3 +403,37 @@ let rec to_latex_rec l = function
   | Until (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a \\Until{%a} %a") (fun x -> to_latex_rec 5) f
                          (fun x -> Interval.to_latex) i (fun x -> to_latex_rec 5) g
 let to_latex = to_latex_rec 0
+
+(* Conversion *)
+let rec to_monpoly_rec l = function
+  | TT -> Printf.sprintf "TRUE"
+  | FF -> Printf.sprintf "FALSE"
+  | EqConst (x, c) -> Printf.sprintf "%s = %s" x (Dom.to_string c)
+  | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
+  | Neg f -> Printf.sprintf "NOT %a" (fun x -> to_monpoly_rec 5) f
+  | And (f, g) -> Printf.sprintf (Etc.paren l 4 "%a AND %a") (fun x -> to_monpoly_rec 4) f (fun x -> to_monpoly_rec 4) g
+  | Or (f, g) -> Printf.sprintf (Etc.paren l 3 "%a OR %a") (fun x -> to_monpoly_rec 3) f (fun x -> to_monpoly_rec 4) g
+  | Imp (f, g) -> Printf.sprintf (Etc.paren l 5 "%a IMPLIES %a") (fun x -> to_monpoly_rec 5) f (fun x -> to_monpoly_rec 5) g
+  | Iff (f, g) -> Printf.sprintf (Etc.paren l 5 "%a EQUIV %a") (fun x -> to_monpoly_rec 5) f (fun x -> to_monpoly_rec 5) g
+  | Exists (x, f) -> Printf.sprintf (Etc.paren l 5 "EXISTS %s. %a") x (fun x -> to_monpoly_rec 5) f
+  | Forall (x, f) -> Printf.sprintf (Etc.paren l 5 "FORALL %s. %a") x (fun x -> to_monpoly_rec 5) f
+  | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "PREV%a %a") (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) f
+  | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "NEXT%a %a") (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) f
+  | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "ONCE%a %a") (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) f
+  | Eventually (i, f) -> Printf.sprintf (Etc.paren l 5 "EVENTUALLY%a %a") (fun x -> Interval.to_string) i
+                           (fun x -> to_monpoly_rec 5) f
+  | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "HISTORICALLY%a %a") (fun x -> Interval.to_string) i
+                             (fun x -> to_monpoly_rec 5) f
+  | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "ALWAYS%a %a") (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) f
+  | Since (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a SINCE%a %a") (fun x -> to_monpoly_rec 5) f
+                         (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) g
+  | Until (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a UNTIL%a %a") (fun x -> to_monpoly_rec 5) f
+                         (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) g
+let to_monpoly = to_monpoly_rec 0
+
+let convert (mon: Argument.Monitor.t) f =
+  match mon with
+  | DejaVu -> failwith "missing"
+  | MonPoly -> to_monpoly f
+  | TimelyMon -> failwith "missing"
+  | VeriMon -> to_monpoly f

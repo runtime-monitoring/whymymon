@@ -73,3 +73,5 @@ val op_to_string: t -> string
 val to_string: bool -> t -> string
 val to_json: t -> string
 val to_latex: t -> string
+
+val convert: Argument.Monitor.t -> t -> string
