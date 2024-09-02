@@ -26,6 +26,9 @@ tools/*.log
 # third party
 third-party/monpoly
 
+# tmp
+tmp/
+
 # misc
 *#*#
 *.bc*
