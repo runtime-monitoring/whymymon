@@ -37,13 +37,13 @@ module WhyMyMon = struct
                            [-sig <file>] [-formula <file>] [-log <file>]
        arguments:
        \t -monitor
-       \t\t dejavu
        \t\t monpoly            - (default)
+       \t\t dejavu
        \t\t timelymon
        \t\t verimon
        \t -path
+       \t\t default            - (default) path (folder third-party) for external monitors
        \t\t <file>             - chosen monitor's executable full path
-       \t -default-path        - consider the default path (folder third-party) for external monitors (overrides -path)
        \t -pref
        \t\t vio                - explain violations (default)
        \t\t sat                - explain satisfactions
