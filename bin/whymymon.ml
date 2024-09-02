@@ -78,7 +78,7 @@ module WhyMyMon = struct
          process_args_rec args
       | ("-sig" :: sf :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         sig_path_ref := sf;
+         sig_path_ref := Filename_unix.realpath sf;
          Other_parser.Sig.parse_from_channel sf;
          process_args_rec args
       | ("-formula" :: f :: args) ->
@@ -92,7 +92,7 @@ module WhyMyMon = struct
                               Stdlib.flush_all (); None);
          process_args_rec args
       | ("-log" :: f :: args) ->
-         stream_path_ref := f;
+         stream_path_ref := Filename_unix.realpath f;
          process_args_rec args
       | ("-logstr" :: logs :: args) ->
          logstr_ref := logs;

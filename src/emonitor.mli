@@ -7,5 +7,5 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-val command: Argument.Monitor.t -> mon_path:string -> ?sig_path:string ->
-             f_path:string -> string list
+val args: Argument.Monitor.t -> mon_path:string -> ?sig_path:string ->
+          f_path:string -> string list

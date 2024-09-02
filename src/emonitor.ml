@@ -32,8 +32,8 @@ let read_line (mon: Argument.Monitor.t) vars line =
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"
 
-let command (mon: Argument.Monitor.t) ~mon_path ?sig_path ~f_path = match mon with
-  | MonPoly -> [mon_path; "-sig " ^ (Option.value_exn sig_path); "-formula " ^ f_path];
+let args (mon: Argument.Monitor.t) ~mon_path ?sig_path ~f_path = match mon with
+  | MonPoly -> [mon_path; "-sig"; Option.value_exn sig_path; "-formula"; f_path];
   | VeriMon -> failwith "missing"
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"
