@@ -66,11 +66,9 @@ module WhyMyMon = struct
          process_args_rec args
       | ("-path" :: p :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         mon_path_ref := p;
-         process_args_rec args
-      | ("-default-path" :: args) ->
-         nec_arg_count := !nec_arg_count + 1;
-         mon_path_ref := "third-party/" ^ (Argument.Monitor.to_lowercase_string !mon_ref);
+         mon_path_ref := (if String.equal p "default" then
+                            (Filename_unix.realpath (Argument.Monitor.exec_path !mon_ref))
+                          else Filename_unix.realpath p);
          process_args_rec args
       | ("-pref" :: p :: args) ->
          pref_ref := Argument.Preference.of_string p;

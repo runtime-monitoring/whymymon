@@ -13,9 +13,9 @@ module Monitor : sig
 
   val of_string: string -> t
 
-  val to_lowercase_string: t -> string
-
   val to_string: t -> string
+
+  val exec_path: t -> string
 
 end
 

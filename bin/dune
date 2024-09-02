@@ -1,5 +1,5 @@
 (executable
  (public_name whymymon)
  (name whymymon)
- (libraries monitor_lib)
+ (libraries monitor_lib core_unix.filename_unix)
  (promote (until-clean)))
