@@ -105,10 +105,9 @@ module WhyMyMon = struct
     try
       process_args (List.tl_exn (Array.to_list Sys.argv));
       match !mon_ref with
-      | MonPoly -> Monitor.exec !mon_ref ~mon_path:!mon_path_ref ~stream_path:!stream_path_ref
-                     ~sig_path:!sig_path_ref (Option.value_exn !formula_ref) !pref_ref !mode_ref
-      | DejaVu -> ()
-      | TimelyMon -> ()
+      | MonPoly -> let _ = Monitor.exec !mon_ref ~mon_path:!mon_path_ref ~stream_path:!stream_path_ref
+                             ~sig_path:!sig_path_ref (Option.value_exn !formula_ref) !pref_ref !mode_ref in ()
+      | _ -> failwith "not yet"
     with End_of_file -> Out_channel.close !outc_ref; exit 0
 
 end

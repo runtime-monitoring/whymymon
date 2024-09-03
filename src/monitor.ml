@@ -219,13 +219,16 @@ let exec mon ~mon_path ~stream_path ?sig_path f pref mode =
   let f_path = Eio.Stdenv.cwd env / "tmp/f.mfotl" in
   traceln "Saving formula in %a" Eio.Path.pp f_path;
   Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
-  (* Start external monitor process *)
+  (* Instantiate process manager *)
   let proc_mgr = Eio.Stdenv.process_mgr env in
-  traceln "Running process with: %s"
-    (Etc.string_list_to_string (Emonitor.args mon ~mon_path ?sig_path
-                                  ~f_path:(Filename_unix.realpath (Eio.Path.native_exn f_path))));
-  Eio.Process.run proc_mgr (Emonitor.args mon ~mon_path ?sig_path
-                              ~f_path:(Filename_unix.realpath (Eio.Path.native_exn f_path)));
+  (* Start external monitor process *)
+  Switch.run (fun sw ->
+      traceln "Running process with: %s"
+        (Etc.string_list_to_string (Emonitor.args mon ~mon_path ?sig_path
+                                      ~f_path:(Filename_unix.realpath (Eio.Path.native_exn f_path))));
+      Eio.Process.spawn ~sw proc_mgr (Emonitor.args mon ~mon_path ?sig_path
+                                        ~f_path:(Filename_unix.realpath (Eio.Path.native_exn f_path)));
+    );
   (* let spath = Eio.Stdenv.cwd env / stream_path in *)
   (* Eio.Path.with_lines stream_path *)
 
