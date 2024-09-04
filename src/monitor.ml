@@ -221,13 +221,29 @@ let exec mon ~mon_path ~stream_path ?sig_path f pref mode =
   Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
   (* Instantiate process manager *)
   let proc_mgr = Eio.Stdenv.process_mgr env in
-  (* Start external monitor process *)
+  let domain_mgr = Eio.Stdenv.domain_mgr env in
   Switch.run (fun sw ->
-      traceln "Running process with: %s"
-        (Etc.string_list_to_string (Emonitor.args mon ~mon_path ?sig_path
-                                      ~f_path:(Filename_unix.realpath (Eio.Path.native_exn f_path))));
-      Eio.Process.spawn ~sw proc_mgr (Emonitor.args mon ~mon_path ?sig_path
-                                        ~f_path:(Filename_unix.realpath (Eio.Path.native_exn f_path)));
+      Fiber.all
+        [ (fun () ->
+            (* Spawn thread with external monitor process *)
+            let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
+            let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
+            traceln "Running process with: %s" (Etc.string_list_to_string args);
+            Eio.Domain_manager.run domain_mgr
+              (fun () -> let status = Eio.Process.spawn ~sw proc_mgr args |> Eio.Process.await in ())
+          );
+          (* Spawn thread to manage external monitor I/O *)
+          (fun () -> Fiber.both
+                       (fun () -> Fiber.yield ())
+                       (fun () -> Fiber.yield ()));
+
+          (* Spawn thread to execute WhyMyMon *)
+
+        ];
+
+
+      (* Fiber: monitor *)
+
     );
   (* let spath = Eio.Stdenv.cwd env / stream_path in *)
   (* Eio.Path.with_lines stream_path *)

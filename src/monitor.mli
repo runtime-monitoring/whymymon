@@ -17,4 +17,4 @@ end
 
 val exec: Argument.Monitor.t -> mon_path:string -> stream_path:string ->
           ?sig_path:string -> Formula.t -> Argument.Preference.t ->
-          Argument.Mode.t -> [ `Generic | `Unix ] Eio.Process.ty Eio.Resource.t
+          Argument.Mode.t -> unit
