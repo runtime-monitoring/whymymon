@@ -7,5 +7,10 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
-val args: Argument.Monitor.t -> mon_path:string -> ?sig_path:string ->
-          f_path:string -> string list
+open Etc
+
+val read_line: Argument.Monitor.t -> string list -> string -> Assignment.t list
+
+val write_line: Argument.Monitor.t -> timestamp * Db.t -> string
+
+val args: Argument.Monitor.t -> mon_path:string -> ?sig_path:string -> f_path:string -> string list

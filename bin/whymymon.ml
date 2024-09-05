@@ -92,7 +92,7 @@ module WhyMyMon = struct
                               Stdlib.flush_all (); None);
          process_args_rec args
       | ("-log" :: f :: args) ->
-         stream_path_ref := Filename_unix.realpath f;
+         stream_path_ref := f;
          process_args_rec args
       | ("-logstr" :: logs :: args) ->
          logstr_ref := logs;

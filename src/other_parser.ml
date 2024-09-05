@@ -192,4 +192,11 @@ module Trace = struct
     let lexbuf = Lexing.from_string log in
     parse_aux (Parsebuf.init lexbuf)
 
+  let parse_line line =
+    let lexbuf = Lexing.from_string line in
+    match parse_aux (Parsebuf.init lexbuf) with
+    | Processed pb -> Some (pb.ts, pb.db)
+    | Skipped (_, s) -> None
+    | Finished -> None
+
 end

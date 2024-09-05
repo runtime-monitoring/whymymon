@@ -209,6 +209,23 @@ let explain v trace pol tp f =
       None in
   eval pol tp f
 
+let read ~domain_mgr source =
+  let buf = Eio.Buf_read.of_flow source ~initial_size:100 ~max_size:1_000_000 in
+  let line = Eio.Buf_read.line buf in
+  traceln "Reading emonitor line: %s" line;
+  Fiber.yield ()
+
+(* Spawn thread to execute WhyMyMon *)
+
+(* Limitation: assumes one time-point per line *)
+let write_lines (mon: Argument.Monitor.t) ~path sink =
+  Eio.Path.with_lines path (fun lines ->
+      Seq.iter (fun line ->
+          traceln "Processing line: %S" line;
+          (match Other_parser.Trace.parse_line line with
+           | None -> Eio.traceln "Skipped line or EOF: %S" line;
+           | Some (ts, db) -> Eio.Flow.copy_string (Emonitor.write_line mon (ts, db)) sink);
+          Fiber.yield ()) lines)
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec mon ~mon_path ~stream_path ?sig_path f pref mode =
@@ -223,27 +240,24 @@ let exec mon ~mon_path ~stream_path ?sig_path f pref mode =
   let proc_mgr = Eio.Stdenv.process_mgr env in
   let domain_mgr = Eio.Stdenv.domain_mgr env in
   Switch.run (fun sw ->
+      let source, sink = Eio.Process.pipe ~sw proc_mgr in
       Fiber.all
-        [ (fun () ->
-            (* Spawn thread with external monitor process *)
+        [ (* Spawn thread with external monitor process *)
+          (fun () ->
             let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
             let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
             traceln "Running process with: %s" (Etc.string_list_to_string args);
-            Eio.Domain_manager.run domain_mgr
-              (fun () -> let status = Eio.Process.spawn ~sw proc_mgr args |> Eio.Process.await in ())
-          );
-          (* Spawn thread to manage external monitor I/O *)
+            let status = Eio.Process.spawn ~sw ~stdin:source ~stdout:sink
+                           proc_mgr args |> Eio.Process.await in
+            match status with
+            | `Exited i -> traceln "Process exited with: %d" i
+            | `Signaled i -> traceln "Process signaled with: %d" i);
+          (* External monitor I/O management *)
           (fun () -> Fiber.both
-                       (fun () -> Fiber.yield ())
-                       (fun () -> Fiber.yield ()));
-
-          (* Spawn thread to execute WhyMyMon *)
-
+                       (fun () -> traceln "1"; let path = Eio.Stdenv.cwd env / stream_path in
+                                  write_lines mon ~path sink)
+                       (fun () -> traceln "2"; read ~domain_mgr source));
         ];
-
-
-      (* Fiber: monitor *)
-
     );
   (* let spath = Eio.Stdenv.cwd env / stream_path in *)
   (* Eio.Path.with_lines stream_path *)
