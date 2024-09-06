@@ -218,17 +218,21 @@ let read ~domain_mgr source =
 
 (* Limitation: assumes one time-point per line *)
 let write_lines (mon: Argument.Monitor.t) stream sink =
-  let rec step pb_opt =
-    match Other_parser.Trace.parse_from_channel stream pb_opt with
+  let pb_opt = ref None in
+  let stop = ref false in
+  while not !stop do
+    let cursor = Other_parser.Trace.parse_from_channel stream !pb_opt in
+    match cursor with
     | Finished -> traceln "Reached the end of stream";
+                  stop := true
     | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
-                           step (Some(pb));
+                           pb_opt := Some(pb);
                            Fiber.yield ()
     | Processed pb -> traceln "Processed event with ts=%d. Sending it to sink." pb.ts;
                       Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) sink;
-                      step (Some(pb));
-                      Fiber.yield () in
-  step None
+                      pb_opt := Some(pb);
+                      Fiber.yield ()
+  done
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec mon ~mon_path ?sig_path stream f pref mode =
