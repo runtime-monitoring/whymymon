@@ -405,31 +405,29 @@ let rec to_latex_rec l = function
 let to_latex = to_latex_rec 0
 
 (* Conversion *)
-let rec to_monpoly_rec l = function
+let rec to_monpoly = function
   | TT -> Printf.sprintf "TRUE"
   | FF -> Printf.sprintf "FALSE"
-  | EqConst (x, c) -> Printf.sprintf "%s = %s" x (Dom.to_string c)
+  | EqConst (x, c) -> Printf.sprintf "(%s = %s)" x (Dom.to_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
-  | Neg f -> Printf.sprintf "NOT %a" (fun x -> to_monpoly_rec 5) f
-  | And (f, g) -> Printf.sprintf (Etc.paren l 4 "%a AND %a") (fun x -> to_monpoly_rec 4) f (fun x -> to_monpoly_rec 4) g
-  | Or (f, g) -> Printf.sprintf (Etc.paren l 3 "%a OR %a") (fun x -> to_monpoly_rec 3) f (fun x -> to_monpoly_rec 4) g
-  | Imp (f, g) -> Printf.sprintf (Etc.paren l 5 "%a IMPLIES %a") (fun x -> to_monpoly_rec 5) f (fun x -> to_monpoly_rec 5) g
-  | Iff (f, g) -> Printf.sprintf (Etc.paren l 5 "%a EQUIV %a") (fun x -> to_monpoly_rec 5) f (fun x -> to_monpoly_rec 5) g
-  | Exists (x, f) -> Printf.sprintf (Etc.paren l 5 "EXISTS %s. %a") x (fun x -> to_monpoly_rec 5) f
-  | Forall (x, f) -> Printf.sprintf (Etc.paren l 5 "FORALL %s. %a") x (fun x -> to_monpoly_rec 5) f
-  | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "PREV%a %a") (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) f
-  | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "NEXT%a %a") (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) f
-  | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "ONCE%a %a") (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) f
-  | Eventually (i, f) -> Printf.sprintf (Etc.paren l 5 "EVENTUALLY%a %a") (fun x -> Interval.to_string) i
-                           (fun x -> to_monpoly_rec 5) f
-  | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "HISTORICALLY%a %a") (fun x -> Interval.to_string) i
-                             (fun x -> to_monpoly_rec 5) f
-  | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "ALWAYS%a %a") (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) f
-  | Since (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a SINCE%a %a") (fun x -> to_monpoly_rec 5) f
-                         (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) g
-  | Until (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a UNTIL%a %a") (fun x -> to_monpoly_rec 5) f
-                         (fun x -> Interval.to_string) i (fun x -> to_monpoly_rec 5) g
-let to_monpoly = to_monpoly_rec 0
+  | Neg f -> Printf.sprintf "(NOT %a)" (fun x -> to_monpoly) f
+  | And (f, g) -> Printf.sprintf "(%a AND %a)" (fun x -> to_monpoly) f (fun x -> to_monpoly) g
+  | Or (f, g) -> Printf.sprintf "(%a OR %a)" (fun x -> to_monpoly) f (fun x -> to_monpoly) g
+  | Imp (f, g) -> Printf.sprintf "(%a IMPLIES %a)" (fun x -> to_monpoly) f (fun x -> to_monpoly) g
+  | Iff (f, g) -> Printf.sprintf "(%a EQUIV %a)" (fun x -> to_monpoly) f (fun x -> to_monpoly) g
+  | Exists (x, f) -> Printf.sprintf "(EXISTS %s. %a)" x (fun x -> to_monpoly) f
+  | Forall (x, f) -> Printf.sprintf "(FORALL %s. %a)" x (fun x -> to_monpoly) f
+  | Prev (i, f) -> Printf.sprintf "(PREV%a %a)" (fun x -> Interval.to_string) i (fun x -> to_monpoly) f
+  | Next (i, f) -> Printf.sprintf "(NEXT%a %a)" (fun x -> Interval.to_string) i (fun x -> to_monpoly) f
+  | Once (i, f) -> Printf.sprintf "(ONCE%a %a)" (fun x -> Interval.to_string) i (fun x -> to_monpoly) f
+  | Eventually (i, f) -> Printf.sprintf "(EVENTUALLY%a %a)" (fun x -> Interval.to_string) i (fun x -> to_monpoly) f
+  | Historically (i, f) -> Printf.sprintf "(HISTORICALLY%a %a)" (fun x -> Interval.to_string) i
+                             (fun x -> to_monpoly) f
+  | Always (i, f) -> Printf.sprintf "(ALWAYS%a %a)" (fun x -> Interval.to_string) i (fun x -> to_monpoly) f
+  | Since (i, f, g) -> Printf.sprintf "(%a SINCE%a %a)" (fun x -> to_monpoly) f
+                         (fun x -> Interval.to_string) i (fun x -> to_monpoly) g
+  | Until (i, f, g) -> Printf.sprintf "(%a UNTIL%a %a)" (fun x -> to_monpoly) f
+                         (fun x -> Interval.to_string) i (fun x -> to_monpoly) g
 
 let convert (mon: Argument.Monitor.t) f =
   match mon with
