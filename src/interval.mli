@@ -37,6 +37,7 @@ val above: int -> t -> bool
 val sub: int -> t -> t
 val add: int -> t -> t
 
+val to_unicode_string: t -> string
 val to_string: t -> string
 val to_latex: t -> string
 val lex: (unit -> t) -> char -> string -> string -> char -> t

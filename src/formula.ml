@@ -303,14 +303,14 @@ let op_to_string = function
   | Iff (_, _) -> Printf.sprintf "↔"
   | Exists (x, _) -> Printf.sprintf "∃ %s." x
   | Forall (x, _) -> Printf.sprintf "∀ %s." x
-  | Prev (i, _) -> Printf.sprintf "●%s" (Interval.to_string i)
-  | Next (i, _) -> Printf.sprintf "○%s" (Interval.to_string i)
-  | Once (i, f) -> Printf.sprintf "⧫%s" (Interval.to_string i)
-  | Eventually (i, f) -> Printf.sprintf "◊%s" (Interval.to_string i)
-  | Historically (i, f) -> Printf.sprintf "■%s" (Interval.to_string i)
-  | Always (i, f) -> Printf.sprintf "□%s" (Interval.to_string i)
-  | Since (i, _, _) -> Printf.sprintf "S%s" (Interval.to_string i)
-  | Until (i, _, _) -> Printf.sprintf "U%s" (Interval.to_string i)
+  | Prev (i, _) -> Printf.sprintf "●%s" (Interval.to_unicode_string i)
+  | Next (i, _) -> Printf.sprintf "○%s" (Interval.to_unicode_string i)
+  | Once (i, f) -> Printf.sprintf "⧫%s" (Interval.to_unicode_string i)
+  | Eventually (i, f) -> Printf.sprintf "◊%s" (Interval.to_unicode_string i)
+  | Historically (i, f) -> Printf.sprintf "■%s" (Interval.to_unicode_string i)
+  | Always (i, f) -> Printf.sprintf "□%s" (Interval.to_unicode_string i)
+  | Since (i, _, _) -> Printf.sprintf "S%s" (Interval.to_unicode_string i)
+  | Until (i, _, _) -> Printf.sprintf "U%s" (Interval.to_unicode_string i)
 
 let rec to_string_rec l json = function
   | TT -> Printf.sprintf "⊤"
@@ -325,16 +325,16 @@ let rec to_string_rec l json = function
   | Iff (f, g) -> Printf.sprintf (Etc.paren l 5 "%a ↔ %a") (fun x -> to_string_rec 5 json) f (fun x -> to_string_rec 5 json) g
   | Exists (x, f) -> Printf.sprintf (Etc.paren l 5 "∃%s. %a") x (fun x -> to_string_rec 5 json) f
   | Forall (x, f) -> Printf.sprintf (Etc.paren l 5 "∀%s. %a") x (fun x -> to_string_rec 5 json) f
-  | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5 json) f
-  | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5 json) f
-  | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5 json) f
-  | Eventually (i, f) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5 json) f
-  | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5 json) f
-  | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_string) i (fun x -> to_string_rec 5 json) f
+  | Prev (i, f) -> Printf.sprintf (Etc.paren l 5 "●%a %a") (fun x -> Interval.to_unicode_string) i (fun x -> to_string_rec 5 json) f
+  | Next (i, f) -> Printf.sprintf (Etc.paren l 5 "○%a %a") (fun x -> Interval.to_unicode_string) i (fun x -> to_string_rec 5 json) f
+  | Once (i, f) -> Printf.sprintf (Etc.paren l 5 "⧫%a %a") (fun x -> Interval.to_unicode_string) i (fun x -> to_string_rec 5 json) f
+  | Eventually (i, f) -> Printf.sprintf (Etc.paren l 5 "◊%a %a") (fun x -> Interval.to_unicode_string) i (fun x -> to_string_rec 5 json) f
+  | Historically (i, f) -> Printf.sprintf (Etc.paren l 5 "■%a %a") (fun x -> Interval.to_unicode_string) i (fun x -> to_string_rec 5 json) f
+  | Always (i, f) -> Printf.sprintf (Etc.paren l 5 "□%a %a") (fun x -> Interval.to_unicode_string) i (fun x -> to_string_rec 5 json) f
   | Since (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a S%a %a") (fun x -> to_string_rec 5 json) f
-                         (fun x -> Interval.to_string) i (fun x -> to_string_rec 5 json) g
+                         (fun x -> Interval.to_unicode_string) i (fun x -> to_string_rec 5 json) g
   | Until (i, f, g) -> Printf.sprintf (Etc.paren l 0 "%a U%a %a") (fun x -> to_string_rec 5 json) f
-                         (fun x -> Interval.to_string) i (fun x -> to_string_rec 5 json) g
+                         (fun x -> Interval.to_unicode_string) i (fun x -> to_string_rec 5 json) g
 let to_string json = to_string_rec 0 json
 
 let rec to_json_rec indent pos f =
@@ -363,21 +363,21 @@ let rec to_json_rec indent pos f =
   | Forall (x, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Forall\",\n%s\"variable\": \"%s\",\n%s\n%s}"
                        indent pos indent' indent' x (to_json_rec indent' "" f) indent
   | Prev (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Prev\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
-                     indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+                     indent pos indent' indent' (Interval.to_unicode_string i) (to_json_rec indent' "" f) indent
   | Next (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Next\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
-                     indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+                     indent pos indent' indent' (Interval.to_unicode_string i) (to_json_rec indent' "" f) indent
   | Once (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Once\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
-                     indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+                     indent pos indent' indent' (Interval.to_unicode_string i) (to_json_rec indent' "" f) indent
   | Eventually (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Eventually\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
-                           indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+                           indent pos indent' indent' (Interval.to_unicode_string i) (to_json_rec indent' "" f) indent
   | Historically (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Historically\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
-                             indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+                             indent pos indent' indent' (Interval.to_unicode_string i) (to_json_rec indent' "" f) indent
   | Always (i, f) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Always\",\n%s\"Interval.t\": \"%s\",\n%s\n%s}"
-                       indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "" f) indent
+                       indent pos indent' indent' (Interval.to_unicode_string i) (to_json_rec indent' "" f) indent
   | Since (i, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Since\",\n%s\"Interval.t\": \"%s\",\n%s,\n%s\n%s}"
-                         indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
+                         indent pos indent' indent' (Interval.to_unicode_string i) (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
   | Until (i, f, g) -> Printf.sprintf "%s\"%sformula\": {\n%s\"type\": \"Until\",\n%s\"Interval.t\": \"%s\",\n%s,\n%s\n%s}"
-                         indent pos indent' indent' (Interval.to_string i) (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
+                         indent pos indent' indent' (Interval.to_unicode_string i) (to_json_rec indent' "l" f) (to_json_rec indent' "r" g) indent
 let to_json = to_json_rec "    " ""
 
 let rec to_latex_rec l = function
