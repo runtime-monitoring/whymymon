@@ -209,26 +209,29 @@ let explain v trace pol tp f =
       None in
   eval pol tp f
 
+(* Spawn thread to execute WhyMyMon somewhere in this function *)
 let read ~domain_mgr source =
   let buf = Eio.Buf_read.of_flow source ~initial_size:100 ~max_size:1_000_000 in
   let line = Eio.Buf_read.line buf in
   traceln "Reading emonitor line: %s" line;
   Fiber.yield ()
 
-(* Spawn thread to execute WhyMyMon *)
-
 (* Limitation: assumes one time-point per line *)
-let write_lines (mon: Argument.Monitor.t) ~path sink =
-  Eio.Path.with_lines path (fun lines ->
-      Seq.iter (fun line ->
-          traceln "Processing line: %S" line;
-          (match Other_parser.Trace.parse_line line with
-           | None -> Eio.traceln "Skipped line or EOF: %S" line;
-           | Some (ts, db) -> Eio.Flow.copy_string (Emonitor.write_line mon (ts, db)) sink);
-          Fiber.yield ()) lines)
+let write_lines (mon: Argument.Monitor.t) stream sink =
+  let rec step pb_opt =
+    match Other_parser.Trace.parse_from_channel stream pb_opt with
+    | Finished -> traceln "Reached the end of stream";
+    | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
+                           step (Some(pb));
+                           Fiber.yield ()
+    | Processed pb -> traceln "Processed event with ts=%d. Sending it to sink." pb.ts;
+                      Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) sink;
+                      step (Some(pb));
+                      Fiber.yield () in
+  step None
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
-let exec mon ~mon_path ~stream_path ?sig_path f pref mode =
+let exec mon ~mon_path ?sig_path stream f pref mode =
   let vars = Set.elements (Formula.fv f) in
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
@@ -254,9 +257,10 @@ let exec mon ~mon_path ~stream_path ?sig_path f pref mode =
             | `Signaled i -> traceln "Process signaled with: %d" i);
           (* External monitor I/O management *)
           (fun () -> Fiber.both
-                       (fun () -> traceln "1"; let path = Eio.Stdenv.cwd env / stream_path in
-                                  write_lines mon ~path sink)
-                       (fun () -> traceln "2"; read ~domain_mgr source));
+                       (fun () -> traceln "Writing lines to sink...";
+                                  write_lines mon stream sink)
+                       (fun () -> traceln "Reading lines from source...";
+                                  read ~domain_mgr source));
         ];
     );
   (* let spath = Eio.Stdenv.cwd env / stream_path in *)

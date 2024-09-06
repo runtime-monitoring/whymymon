@@ -15,6 +15,6 @@ module State : sig
 
 end
 
-val exec: Argument.Monitor.t -> mon_path:string -> stream_path:string ->
-          ?sig_path:string -> Formula.t -> Argument.Preference.t ->
+val exec: Argument.Monitor.t -> mon_path:string -> ?sig_path:string ->
+          Stdio.In_channel.t -> Formula.t -> Argument.Preference.t ->
           Argument.Mode.t -> unit
