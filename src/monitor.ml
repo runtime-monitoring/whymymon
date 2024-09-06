@@ -212,22 +212,23 @@ let explain v trace pol tp f =
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
 let read ~domain_mgr source =
   let buf = Eio.Buf_read.of_flow source ~initial_size:100 ~max_size:1_000_000 in
-  let line = Eio.Buf_read.line buf in
-  traceln "Reading emonitor line: %s" line;
-  Fiber.yield ()
+  while true do
+    let line = Eio.Buf_read.line buf in
+    traceln "Read emonitor line: %s" line;
+    (* Fiber.yield (); *)
+  done
 
-(* Limitation: assumes one time-point per line *)
 let write_lines (mon: Argument.Monitor.t) stream sink =
   let rec step pb_opt =
     match Other_parser.Trace.parse_from_channel stream pb_opt with
-    | Finished -> traceln "Reached the end of stream";
+    | Finished -> traceln "Reached the end of stream"; Fiber.yield ();
     | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
-                           step (Some(pb));
-                           Fiber.yield ()
-    | Processed pb -> traceln "Processed event with ts=%d. Sending it to sink." pb.ts;
+                           Fiber.yield ();
+                           step (Some(pb))
+    | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
                       Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) sink;
-                      step (Some(pb));
-                      Fiber.yield () in
+                      (* Fiber.yield (); *)
+                      step (Some(pb)) in
   step None
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
@@ -250,7 +251,7 @@ let exec mon ~mon_path ?sig_path stream f pref mode =
             let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
             let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
             traceln "Running process with: %s" (Etc.string_list_to_string args);
-            let status = Eio.Process.spawn ~sw ~stdin:source ~stdout:sink
+            let status = Eio.Process.spawn ~sw ~stdin:source ~stdout:sink ~stderr:sink
                            proc_mgr args |> Eio.Process.await in
             match status with
             | `Exited i -> traceln "Process exited with: %d" i
@@ -263,18 +264,3 @@ let exec mon ~mon_path ?sig_path stream f pref mode =
                                   read ~domain_mgr source));
         ];
     );
-  (* let spath = Eio.Stdenv.cwd env / stream_path in *)
-  (* Eio.Path.with_lines stream_path *)
-
-
-
-  (* let (in_c, out_c) = Emonitor.start mon mon_path sig_path f_path in *)
-  (* let rec step pb_opt = *)
-  (*   match Other_parser.Trace.parse_from_channel trace_c pb_opt with *)
-  (*   | Finished -> () *)
-  (*   | Skipped (pb, msg) -> Stdio.printf "The parser skipped an event because %s" msg; *)
-  (*                          step (Some(pb)) *)
-  (*   | Processed pb -> Emonitor.feed mon out_c pb.ts pb.db; *)
-  (*                     let _ = Emonitor.read mon in_c vars in *)
-  (*                     step (Some(pb)) in *)
-  (* step None *)
