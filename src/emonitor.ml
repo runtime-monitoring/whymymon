@@ -10,7 +10,7 @@
 open Base
 
 (* TODO: Rewrite this using functors/first-class modules to distinguish monitors (or maybe not) *)
-let read_line (mon: Argument.Monitor.t) vars line =
+let to_assignments (mon: Argument.Monitor.t) vars line =
   match mon with
   | MonPoly -> let (tp, sss) = Emonitor_parser.Monpoly.parse line in
                List.map sss ~f:(fun ss ->

@@ -9,7 +9,7 @@
 
 open Etc
 
-val read_line: Argument.Monitor.t -> string list -> string -> Assignment.t list
+val to_assignments: Argument.Monitor.t -> string list -> string -> Assignment.t list
 
 val write_line: Argument.Monitor.t -> timestamp * Db.t -> string
 

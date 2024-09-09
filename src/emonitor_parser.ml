@@ -64,7 +64,8 @@ module Monpoly = struct
       match pb.token with
       | LPA | RPA -> Parsebuf.next pb; parse_tp ()
       | COL -> Parsebuf.next pb; parse_tuple ()
-      | STR s -> let s = String.chop_prefix_exn s ~prefix:"timepoint" in
+      | STR s -> Stdio.printf "STR s = %s\n" s;
+                 let s = String.chop_prefix_exn s ~prefix:"time point" in
                  let tp = try Some (Int.of_string s)
                           with _ -> None in
                  (match tp with
