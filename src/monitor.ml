@@ -210,24 +210,36 @@ let explain v trace pol tp f =
   eval pol tp f
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
-let read ~domain_mgr source =
-  let buf = Eio.Buf_read.of_flow source ~initial_size:100 ~max_size:1_000_000 in
+let read ~domain_mgr r_source r_sink end_of_stream =
+  let buf = Eio.Buf_read.of_flow r_source ~initial_size:100 ~max_size:1_000_000 in
+  let stop = ref false in
   while true do
+    traceln "Looping.";
+    (* traceln "end_of_stream = %B" !end_of_stream; *)
+    (* traceln "at_end_of_input = %B" (Eio.Buf_read.at_end_of_input buf); *)
+    (* traceln "Buffer = %S" (Eio.Buf_read.line buf); *)
+    (* traceln "at_end_of_input = %B" (Eio.Buf_read.at_end_of_input buf) *)
     let line = Eio.Buf_read.line buf in
-    traceln "Read emonitor line: %s" line;
-    (* Fiber.yield (); *)
+    traceln "Read emonitor line: %S" line;
+    if !end_of_stream && not !stop then (Eio.Flow.copy_string "Stop\n" r_sink);
+    traceln "1";
+    if String.equal line "Stop" then raise Exit;
+    traceln "2";
+    Fiber.yield ()
   done
 
-let write_lines (mon: Argument.Monitor.t) stream sink =
+let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream =
   let rec step pb_opt =
     match Other_parser.Trace.parse_from_channel stream pb_opt with
-    | Finished -> traceln "Reached the end of stream"; Fiber.yield ();
+    | Finished -> traceln "Reached the end of event stream";
+                  end_of_stream := true;
+                  Fiber.yield ()
     | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
                            Fiber.yield ();
                            step (Some(pb))
     | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
-                      Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) sink;
-                      (* Fiber.yield (); *)
+                      Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) w_sink;
+                      Fiber.yield ();
                       step (Some(pb)) in
   step None
 
@@ -240,27 +252,33 @@ let exec mon ~mon_path ?sig_path stream f pref mode =
   let f_path = Eio.Stdenv.cwd env / "tmp/f.mfotl" in
   traceln "Saving formula in %a" Eio.Path.pp f_path;
   Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
-  (* Instantiate process manager *)
+  (* Instantiate process/domain managers *)
   let proc_mgr = Eio.Stdenv.process_mgr env in
   let domain_mgr = Eio.Stdenv.domain_mgr env in
   Switch.run (fun sw ->
-      let source, sink = Eio.Process.pipe ~sw proc_mgr in
-      Fiber.all
-        [ (* Spawn thread with external monitor process *)
-          (fun () ->
-            let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
-            let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
-            traceln "Running process with: %s" (Etc.string_list_to_string args);
-            let status = Eio.Process.spawn ~sw ~stdin:source ~stdout:sink ~stderr:sink
-                           proc_mgr args |> Eio.Process.await in
-            match status with
-            | `Exited i -> traceln "Process exited with: %d" i
-            | `Signaled i -> traceln "Process signaled with: %d" i);
-          (* External monitor I/O management *)
-          (fun () -> Fiber.both
-                       (fun () -> traceln "Writing lines to sink...";
-                                  write_lines mon stream sink)
-                       (fun () -> traceln "Reading lines from source...";
-                                  read ~domain_mgr source));
-        ];
+      (* source and sink of emonitor's stdin *)
+      let w_source, w_sink = Eio.Process.pipe ~sw proc_mgr in
+      (* source and sink of emonitor's stdout *)
+      let r_source, r_sink = Eio.Process.pipe ~sw proc_mgr in
+      (* signals end of stream *)
+      let end_of_stream = ref false in
+      try
+        Fiber.all
+          [ (* Spawn thread with external monitor process *)
+            (fun () ->
+              let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
+              let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
+              traceln "Running process with: %s" (Etc.string_list_to_string args);
+              let status = Eio.Process.spawn ~sw ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
+                             proc_mgr args |> Eio.Process.await in
+              match status with
+              | `Exited i -> traceln "Process exited with: %d" i
+              | `Signaled i -> traceln "Process signaled with: %d" i);
+            (* External monitor I/O management *)
+            (fun () -> traceln "Writing lines to emonitor's stdin...";
+                       write_lines mon stream w_sink end_of_stream);
+            (fun () -> traceln "Reading lines from emonitor's stdout...";
+                       read ~domain_mgr r_source r_sink end_of_stream)
+          ];
+      with Exit -> Stdio.printf "Reached the end of the log file.\n"
     );
