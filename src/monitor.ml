@@ -17,23 +17,23 @@ let do_neg = function
   | Proof.S sp -> Proof.V (VNeg sp)
   | V vp -> S (SNeg vp)
 
-let do_and (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
-  | S sp1, S sp2 -> [S (SAnd (sp1, sp2))]
-  | S _ , V vp2 -> [V (VAndR (vp2))]
-  | V vp1, S _ -> [V (VAndL (vp1))]
-  | V vp1, V vp2 -> [(V (VAndL (vp1))); (V (VAndR (vp2)))]
+let do_and (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
+  | S sp1, S sp2 -> S (SAnd (sp1, sp2))
+  | S _ , V vp2 -> V (VAndR (vp2))
+  | V vp1, S _ -> V (VAndL (vp1))
+  | V vp1, V _ -> V (VAndL (vp1))
 
-let do_or (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
-  | S sp1, S sp2 -> [(S (SOrL (sp1))); (S (SOrR(sp2)))]
-  | S sp1, V _ -> [S (SOrL (sp1))]
-  | V _ , S sp2 -> [S (SOrR (sp2))]
-  | V vp1, V vp2 -> [V (VOr (vp1, vp2))]
+let do_or (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
+  | S sp1, S _ -> S (SOrL (sp1))
+  | S sp1, V _ -> S (SOrL (sp1))
+  | V _ , S sp2 -> S (SOrR (sp2))
+  | V vp1, V vp2 -> V (VOr (vp1, vp2))
 
-let do_imp (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
-  | S _, S sp2 -> [S (SImpR sp2)]
-  | S sp1, V vp2 -> [V (VImp (sp1, vp2))]
-  | V vp1, S sp2 -> [S (SImpL vp1); S (SImpR sp2)]
-  | V vp1, V _ -> [S (SImpL vp1)]
+let do_imp (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
+  | S _, S sp2 -> S (SImpR sp2)
+  | S sp1, V vp2 -> V (VImp (sp1, vp2))
+  | V vp1, S _ -> S (SImpL vp1)
+  | V vp1, V _ -> S (SImpL vp1)
 
 let do_iff (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
   | S sp1, S sp2 -> S (SIffSS (sp1, sp2))
@@ -220,6 +220,7 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f =
     let assignments = Emonitor.to_assignments mon vars line in
     traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
     let f_replaced = Formula.replace_fv (List.hd_exn assignments) f in
+    traceln "Rewritten formula: %s" (Formula.to_string false f_replaced);
     if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
     Fiber.yield ()
   done
@@ -241,7 +242,6 @@ let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream =
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec mon ~mon_path ?sig_path stream f pref mode =
-
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
   (* Formula conversion *)
