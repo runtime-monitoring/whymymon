@@ -122,11 +122,11 @@ end
 let explain vars trace pol tp f =
   let rec eval pol tp (f: Formula.t) = match f with
     | TT -> (match pol with
-             | SAT -> None
+             | SAT -> Some (Pdt.Leaf (Expl.Proof.S (STT tp)))
              | VIO -> None)
     | FF -> (match pol with
              | SAT -> None
-             | VIO -> None)
+             | VIO -> Some (Pdt.Leaf (Expl.Proof.V (VFF tp))))
     | EqConst (x, d) -> (match pol with
                          | SAT -> None
                          | VIO -> None)
@@ -209,22 +209,22 @@ let explain vars trace pol tp f =
   eval pol tp f
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
-let read ~domain_mgr r_source r_sink end_of_stream mon f =
+let read ~domain_mgr r_source r_sink end_of_stream mon f trace =
   let vars = Set.elements (Formula.fv f) in
   let buf = Eio.Buf_read.of_flow r_source ~initial_size:100 ~max_size:1_000_000 in
   let stop = ref false in
   while true do
     let line = Eio.Buf_read.line buf in
     traceln "Read emonitor line: %s" line;
+    (* traceln "Trace size: %d" (Fdeque.length !trace); *)
     if String.equal line "Stop" then raise Exit;
     let assignments = Emonitor.to_assignments mon vars line in
     traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
-    let f_replaced = Formula.replace_fv (List.hd_exn assignments) f in
     if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
     Fiber.yield ()
   done
 
-let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream =
+let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream trace =
   let rec step pb_opt =
     match Other_parser.Trace.parse_from_channel stream pb_opt with
     | Finished -> traceln "Reached the end of event stream";
@@ -235,6 +235,7 @@ let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream =
                            step (Some(pb))
     | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
                       Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) w_sink;
+                      trace := Fdeque.enqueue_back !trace (pb.ts, pb.db);
                       Fiber.yield ();
                       step (Some(pb)) in
   step None
@@ -257,6 +258,8 @@ let exec mon ~mon_path ?sig_path stream f pref mode extra_args =
       let r_source, r_sink = Eio.Process.pipe ~sw proc_mgr in
       (* signals end of stream *)
       let end_of_stream = ref false in
+      (* accumulated trace ref *)
+      let trace = ref Fdeque.empty in
       try
         Fiber.all
           [ (* Spawn thread with external monitor process *)
@@ -271,9 +274,9 @@ let exec mon ~mon_path ?sig_path stream f pref mode extra_args =
               | `Signaled i -> traceln "Process signaled with: %d" i);
             (* External monitor I/O management *)
             (fun () -> traceln "Writing lines to emonitor's stdin...";
-                       write_lines mon stream w_sink end_of_stream);
+                       write_lines mon stream w_sink end_of_stream trace);
             (fun () -> traceln "Reading lines from emonitor's stdout...";
-                       read ~domain_mgr r_source r_sink end_of_stream mon f)
+                       read ~domain_mgr r_source r_sink end_of_stream mon f trace)
           ];
       with Exit -> Stdio.printf "Reached the end of the log file.\n"
     );
