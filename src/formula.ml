@@ -442,7 +442,7 @@ let rec replace_fv assignment = function
   | EqConst (x, c) -> TT
   | Predicate (r, trms) -> Predicate (r, List.map trms ~f:(fun trm ->
                                              match trm with
-                                             | Var x -> (* If not in mapping, var is not free *)
+                                             | Var x -> (* Var is only free if it appears in the assignment *)
                                                 (match Map.find assignment x with
                                                  | None -> Pred.Term.Var x
                                                  | Some d -> Const d)
