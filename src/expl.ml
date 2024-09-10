@@ -490,7 +490,8 @@ module Proof = struct
 
   let val_changes_to_latex v =
     if List.is_empty v then "v"
-    else "v[" ^ Etc.string_list_to_string (List.map v ~f:(fun (x, d) -> Printf.sprintf "%s \\mapsto %s" x d)) ^ "]"
+    else "v[" ^ Etc.string_list_to_string ~sep:", "
+                  (List.map v ~f:(fun (x, d) -> Printf.sprintf "%s \\mapsto %s" x d)) ^ "]"
 
   let rec s_to_latex indent v idx p (h: Formula.t) =
     let indent' = "\t" ^ indent in

@@ -51,10 +51,10 @@ let list_to_string indent f = function
      List.fold_left xs ~init:(indent ^ eat "[ " (f indent x))
        ~f:(fun s el -> eat (s ^ "\n" ^ indent ^ "; ") (f indent el)) ^ " ]"
 
-let rec string_list_to_string = function
+let rec string_list_to_string ~sep = function
   | [] -> ""
   | x :: xs -> if List.is_empty xs then x
-               else Printf.sprintf "%s, %s" x (string_list_to_string xs)
+               else Printf.sprintf "%s%s%s" x sep (string_list_to_string ~sep xs)
 
 let some_string () = (String.of_char (Char.of_int_exn (Random.int_incl 97 122))) ^
                        (String.of_char (Char.of_int_exn (Random.int_incl 97 122))) ^

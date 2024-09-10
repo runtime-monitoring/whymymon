@@ -218,8 +218,8 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f =
     traceln "Read emonitor line: %s" line;
     if String.equal line "Stop" then raise Exit;
     let assignments = Emonitor.to_assignments mon vars line in
+    traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
     let f_replaced = Formula.replace_fv (List.hd_exn assignments) f in
-    traceln "%s" (Etc.string_list_to_string (List.map assignments ~f:Assignment.to_string));
     if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
     Fiber.yield ()
   done
@@ -264,7 +264,7 @@ let exec mon ~mon_path ?sig_path stream f pref mode =
             (fun () ->
               let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
               let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
-              traceln "Running process with: %s" (Etc.string_list_to_string args);
+              traceln "Running process with: %s" (Etc.string_list_to_string ~sep:", " args);
               let status = Eio.Process.spawn ~sw ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
                              proc_mgr args |> Eio.Process.await in
               match status with

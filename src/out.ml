@@ -70,7 +70,8 @@ module Json = struct
     let sig_preds_columns = List.rev (Set.fold (Formula.pred_names f) ~init:[] ~f:(fun acc r ->
                                           let r_props = Hashtbl.find_exn Pred.Sig.table r in
                                           let var_names = fst (List.unzip r_props.ntconsts) in
-                                          (Printf.sprintf "%s(%s)" r (Etc.string_list_to_string var_names)) :: acc)) in
+                                          (Printf.sprintf "%s(%s)" r
+                                             (Etc.string_list_to_string ~sep:", " var_names)) :: acc)) in
     let subfs_columns = List.map (Formula.subfs_dfs f) ~f:Formula.op_to_string in
     let subfs_scope = List.map (Formula.subfs_scope f 0) ~f:(fun (i, (js, ks)) ->
                           Printf.sprintf "{\"col\": %d, \"leftCols\": %s, \"rightCols\": %s}"
@@ -81,7 +82,7 @@ module Json = struct
                     \"subfsScopes\": [%s],\n
                     \"subformulas\": %s }\n"
       (Etc.string_list_to_json sig_preds_columns) (Etc.string_list_to_json subfs_columns)
-      (Etc.string_list_to_string subfs_scope) (Etc.string_list_to_json subfs)
+      (Etc.string_list_to_string ~sep:", " subfs_scope) (Etc.string_list_to_json subfs)
 
   let db ts tp db f =
     Printf.sprintf "%s{\n" (String.make 4 ' ') ^
