@@ -27,14 +27,11 @@ module WhyMyMon = struct
   let stream_ref = ref Stdio.In_channel.stdin
   let logstr_ref = ref ""
 
-  let outc_ref = ref Stdio.Out_channel.stdout
-
   let nec_arg_count = ref 0
 
   let usage () =
     Format.eprintf
-      "usage: ./whymymon.exe [-monitor <monitor>] [-path <file>] [-measure <measure>]
-                           [-sig <file>] [-formula <file>] [-log <file>]
+      "usage: whymymon.exe -path -sig -formula [-monitor] [-path] [-pref] [-log]
        arguments:
        \t -monitor
        \t\t monpoly            - (default)
@@ -53,9 +50,9 @@ module WhyMyMon = struct
        \t -sig
        \t\t <file>             - signature
        \t -formula
-       \t\t <file> or <string> - MFOTL formula
+       \t\t <file>             - MFOTL formula
        \t -log
-       \t\t <file>             - specify log file as stream (default: stdin)\n%!";
+       \t\t <file> or stdin    - specify a log file as a stream (default: stdin)\n%!";
     exit 0
 
   let process_args =
@@ -104,10 +101,11 @@ module WhyMyMon = struct
   let _ =
     try
       process_args (List.tl_exn (Array.to_list Sys.argv));
+      let extra_args = Argument.Monitor.extra_args !pref_ref !mon_ref in
       match !mon_ref with
       | MonPoly -> let _ = Monitor.exec !mon_ref ~mon_path:!mon_path_ref ~sig_path:!sig_path_ref
-                             !stream_ref (Option.value_exn !formula_ref) !pref_ref !mode_ref in ()
+                             !stream_ref (Option.value_exn !formula_ref) !pref_ref !mode_ref extra_args in ()
       | _ -> failwith "not yet"
-    with End_of_file -> Out_channel.close !outc_ref; exit 0
+    with End_of_file -> exit 0
 
 end

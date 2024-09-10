@@ -9,6 +9,22 @@
 
 open Base
 
+module Preference = struct
+
+  type t = Satisfaction | Violation
+
+  let of_string = function
+    | "sat" | "satisfaction" -> Satisfaction
+    | "vio" | "violation" -> Violation
+    | _ -> Format.eprintf "your preference should be either: satisfaction or violation\n%!";
+           raise (Invalid_argument "undefined preference")
+
+  let to_string = function
+    | Satisfaction -> "Satisfaction"
+    | Violation -> "Violation"
+
+end
+
 module Monitor = struct
 
   type t = MonPoly | VeriMon | DejaVu | TimelyMon
@@ -33,21 +49,13 @@ module Monitor = struct
     | DejaVu -> failwith "not yet"
     | TimelyMon -> failwith "not yet"
 
-end
-
-module Preference = struct
-
-  type t = Satisfaction | Violation
-
-  let of_string = function
-    | "sat" | "satisfaction" -> Satisfaction
-    | "vio" | "violation" -> Violation
-    | _ -> Format.eprintf "your preference should be either: satisfaction or violation\n%!";
-           raise (Invalid_argument "undefined preference")
-
-  let to_string = function
-    | Satisfaction -> "Satisfaction"
-    | Violation -> "Violation"
+  let extra_args (pref: Preference.t) = function
+    | MonPoly -> (match pref with
+                  | Satisfaction -> []
+                  | Violation -> ["-negate"])
+    | VeriMon -> failwith "not yet"
+    | DejaVu -> failwith "not yet"
+    | TimelyMon -> failwith "not yet"
 
 end
 

@@ -240,8 +240,7 @@ let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream =
   step None
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
-let exec mon ~mon_path ?sig_path stream f pref mode =
-
+let exec mon ~mon_path ?sig_path stream f pref mode extra_args =
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
   (* Formula conversion *)
@@ -266,7 +265,7 @@ let exec mon ~mon_path ?sig_path stream f pref mode =
               let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
               traceln "Running process with: %s" (Etc.string_list_to_string ~sep:", " args);
               let status = Eio.Process.spawn ~sw ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
-                             proc_mgr args |> Eio.Process.await in
+                             proc_mgr (args @ extra_args) |> Eio.Process.await in
               match status with
               | `Exited i -> traceln "Process exited with: %d" i
               | `Signaled i -> traceln "Process signaled with: %d" i);

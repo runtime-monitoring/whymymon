@@ -7,6 +7,16 @@
 (*  Leonardo Lima (UCPH)                                           *)
 (*******************************************************************)
 
+module Preference : sig
+
+  type t = Satisfaction | Violation
+
+  val of_string: string -> t
+
+  val to_string: t -> string
+
+end
+
 module Monitor : sig
 
   type t = MonPoly | VeriMon | DejaVu | TimelyMon
@@ -17,15 +27,7 @@ module Monitor : sig
 
   val exec_path: t -> string
 
-end
-
-module Preference : sig
-
-  type t = Satisfaction | Violation
-
-  val of_string: string -> t
-
-  val to_string: t -> string
+  val extra_args: Preference.t -> t -> string list
 
 end
 
