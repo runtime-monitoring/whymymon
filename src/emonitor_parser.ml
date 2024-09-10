@@ -64,15 +64,14 @@ module Monpoly = struct
       match pb.token with
       | LPA | RPA -> Parsebuf.next pb; parse_tp ()
       | COL -> Parsebuf.next pb; parse_tuple ()
-      | STR s -> Stdio.printf "STR s = %s\n" s;
-                 let s = String.chop_prefix_exn s ~prefix:"time point" in
-                 let tp = try Some (Int.of_string s)
-                          with _ -> None in
-                 (match tp with
-                  | Some tp -> pb.tp <- tp;
-                               Parsebuf.next pb;
-                               parse_tp ()
-                  | None -> Error (pb, "expected a time-point but found " ^ s))
+      | STR s -> if String.equal s "time" || String.equal s "point" then (Parsebuf.next pb; parse_tp ())
+                 else (let tp = try Some (Int.of_string s)
+                                with _ -> None in
+                       (match tp with
+                        | Some tp -> pb.tp <- tp;
+                                     Parsebuf.next pb;
+                                     parse_tp ()
+                        | None -> Error (pb, "expected a time-point but found " ^ s)))
       | t -> Error (pb, "expected a time-point but found " ^ string_of_token t)
     and parse_tuple () =
       match pb.token with
