@@ -97,7 +97,7 @@ module WhyMyMon = struct
       | ("-logstr" :: logs :: args) ->
          logstr_ref := logs;
          process_args_rec args
-      | [] -> if !nec_arg_count >= 4 then () else usage ()
+      | [] -> if !nec_arg_count >= 3 then () else usage ()
       | _ -> usage () in
     process_args_rec
 
