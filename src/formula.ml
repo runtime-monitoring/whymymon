@@ -435,3 +435,30 @@ let convert (mon: Argument.Monitor.t) f =
   | MonPoly -> to_monpoly f
   | TimelyMon -> failwith "missing"
   | VeriMon -> to_monpoly f
+
+let rec replace_fv assignment = function
+  | TT -> TT
+  | FF -> FF
+  | EqConst (x, c) -> TT
+  | Predicate (r, trms) -> Predicate (r, List.map trms ~f:(fun trm ->
+                                             match trm with
+                                             | Var x -> (* If not in mapping, var is not free *)
+                                                (match Map.find assignment x with
+                                                 | None -> Pred.Term.Var x
+                                                 | Some d -> Const d)
+                                             | Const d -> Const d))
+  | Exists (x, f) -> Exists (x, replace_fv assignment f)
+  | Forall (x, f) -> Forall (x, replace_fv assignment f)
+  | Neg f -> Neg (replace_fv assignment f)
+  | Prev (i, f) -> Prev (i, replace_fv assignment f)
+  | Once (i, f) -> Once (i, replace_fv assignment f)
+  | Historically (i, f) -> Historically (i, replace_fv assignment f)
+  | Eventually (i, f) -> Eventually (i, replace_fv assignment f)
+  | Always (i, f) -> Always (i, replace_fv assignment f)
+  | Next (i, f) -> Next (i, replace_fv assignment f)
+  | And (f1, f2) -> And (replace_fv assignment f1, replace_fv assignment f2)
+  | Or (f1, f2) -> Or (replace_fv assignment f1, replace_fv assignment f2)
+  | Imp (f1, f2) -> Imp (replace_fv assignment f1, replace_fv assignment f2)
+  | Iff (f1, f2) -> Iff (replace_fv assignment f1, replace_fv assignment f2)
+  | Since (i, f1, f2) -> Since (i, replace_fv assignment f1, replace_fv assignment f2)
+  | Until (i, f1, f2) -> Until (i, replace_fv assignment f1, replace_fv assignment f2)

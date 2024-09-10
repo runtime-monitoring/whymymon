@@ -9,7 +9,7 @@
 
 open Base
 
-type t
+type t = (string, Dom.t, String.comparator_witness) Map.t
 
 val init: unit -> t
 

@@ -20,5 +20,5 @@ let add v x d = match Map.add v ~key:x ~data:d with
      raise (Invalid_argument (Printf.sprintf "variable %s already has a mapping" x))
 
 let to_string v =
-  Map.fold v ~init:"Assignment:\n" ~f:(fun ~key:x ~data:d s ->
-      s ^ Printf.sprintf "%s ↦ %s\n" x (Dom.to_string d))
+  Map.fold v ~init:"Assignment:" ~f:(fun ~key:x ~data:d s ->
+      s ^ "\n" ^ Printf.sprintf "%s ↦ %s" x (Dom.to_string d))

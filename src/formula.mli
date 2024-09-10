@@ -75,3 +75,5 @@ val to_json: t -> string
 val to_latex: t -> string
 
 val convert: Argument.Monitor.t -> t -> string
+
+val replace_fv: Assignment.t -> t -> t

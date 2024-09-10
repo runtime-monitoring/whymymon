@@ -119,8 +119,7 @@ module State = struct
 
 end
 
-let explain v trace pol tp f =
-  let vars = Set.elements (Formula.fv f) in
+let explain vars trace pol tp f =
   let rec eval pol tp (f: Formula.t) = match f with
     | TT -> (match pol with
              | SAT -> None
@@ -210,17 +209,18 @@ let explain v trace pol tp f =
   eval pol tp f
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
-let read ~domain_mgr r_source r_sink end_of_stream mon vars =
+let read ~domain_mgr r_source r_sink end_of_stream mon f =
+  let vars = Set.elements (Formula.fv f) in
   let buf = Eio.Buf_read.of_flow r_source ~initial_size:100 ~max_size:1_000_000 in
   let stop = ref false in
   while true do
     let line = Eio.Buf_read.line buf in
-    traceln "Read emonitor line: %S" line;
-    let assignments = Emonitor.to_assignments mon vars line in
-    traceln "Read emonitor line: %S" (Etc.string_list_to_string (List.map assignments ~f:Assignment.to_string));
-    (* Stop related *)
-    if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
+    traceln "Read emonitor line: %s" line;
     if String.equal line "Stop" then raise Exit;
+    let assignments = Emonitor.to_assignments mon vars line in
+    let f_replaced = Formula.replace_fv (List.hd_exn assignments) f in
+    traceln "%s" (Etc.string_list_to_string (List.map assignments ~f:Assignment.to_string));
+    if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
     Fiber.yield ()
   done
 
@@ -241,7 +241,7 @@ let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream =
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec mon ~mon_path ?sig_path stream f pref mode =
-  let vars = Set.elements (Formula.fv f) in
+
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
   (* Formula conversion *)
@@ -274,7 +274,7 @@ let exec mon ~mon_path ?sig_path stream f pref mode =
             (fun () -> traceln "Writing lines to emonitor's stdin...";
                        write_lines mon stream w_sink end_of_stream);
             (fun () -> traceln "Reading lines from emonitor's stdout...";
-                       read ~domain_mgr r_source r_sink end_of_stream mon vars)
+                       read ~domain_mgr r_source r_sink end_of_stream mon f)
           ];
       with Exit -> Stdio.printf "Reached the end of the log file.\n"
     );
