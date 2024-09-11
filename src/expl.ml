@@ -41,6 +41,8 @@ module Part = struct
 
   let filter part f = List.filter part ~f:(fun (_, p) -> f p)
 
+  let filter_map part f = List.filter_map part ~f:(fun (s, p) -> f (s, p))
+
   let exists part f = List.exists part ~f:(fun (_, p) -> f p)
 
   let for_all part f = List.for_all part ~f:(fun (_, p) -> f p)
@@ -291,6 +293,12 @@ module Proof = struct
     | S sp, S sp' -> s_equal sp sp'
     | V vp, V vp' -> v_equal vp vp'
     | _ -> false
+
+  let equal_opt x y = match x, y with
+    | None, None -> true
+    | Some _, None -> false
+    | None, Some _ -> false
+    | Some x, Some y -> equal x y
 
   let unS = function
     | S sp -> sp
@@ -768,8 +776,8 @@ module Proof = struct
     let minp x y = if p x <= p y then x else y
 
     let minp_list = function
-      | [] -> raise (Invalid_argument "function not defined for empty lists")
-      | x :: xs -> List.fold_left xs ~init:x ~f:minp
+      | [] -> None
+      | x :: xs -> Some (List.fold_left xs ~init:x ~f:minp)
 
   end
 
@@ -939,6 +947,14 @@ module Pdt = struct
                                      Node (y, Part.map_dedup (equal p_eq) part (hide_reduce p_eq vars f_leaf f_node))
                                    else hide_reduce p_eq vars f_leaf f_node (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
+
+  let rec prune_nones = function
+    | Leaf l_opt -> (match l_opt with
+                     | None -> None
+                     | Some l -> Some (Leaf l))
+    | Node (x, part) -> Some (Node (x, Part.filter_map part (fun (s, pdt_opt) -> match prune_nones pdt_opt with
+                                                                                 | None -> None
+                                                                                 | Some pdt -> Some (s, pdt))))
 
 end
 

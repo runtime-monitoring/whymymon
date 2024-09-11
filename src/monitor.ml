@@ -13,33 +13,47 @@ open Expl
 open Pred
 open Eio.Std
 
-let do_neg = function
-  | Proof.S sp -> Proof.V (VNeg sp)
-  | V vp -> S (SNeg vp)
+type polarity = SAT | VIO
 
-let do_and (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
-  | S sp1, S sp2 -> [S (SAnd (sp1, sp2))]
-  | S _ , V vp2 -> [V (VAndR (vp2))]
-  | V vp1, S _ -> [V (VAndL (vp1))]
-  | V vp1, V vp2 -> [(V (VAndL (vp1))); (V (VAndR (vp2)))]
+let do_neg (p: Proof.t) pol = match p, pol with
+  | S sp, SAT -> Some (Proof.V (VNeg sp))
+  | S _ , VIO -> None
+  | V _ , SAT -> None
+  | V vp, VIO -> Some (S (SNeg vp))
 
-let do_or (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
-  | S sp1, S sp2 -> [(S (SOrL (sp1))); (S (SOrR(sp2)))]
-  | S sp1, V _ -> [S (SOrL (sp1))]
-  | V _ , S sp2 -> [S (SOrR (sp2))]
-  | V vp1, V vp2 -> [V (VOr (vp1, vp2))]
+let do_and (p1: Proof.t) (p2: Proof.t) pol : Proof.t option =
+  Proof.Size.minp_list
+    (match p1, p2, pol with
+     | S sp1, S sp2, SAT -> [Proof.S (SAnd (sp1, sp2))]
+     | S _ , V vp2, VIO -> [V (VAndR (vp2))]
+     | V vp1, S _, VIO -> [V (VAndL (vp1))]
+     | V vp1, V vp2, VIO -> [(V (VAndL (vp1))); (V (VAndR (vp2)))]
+     | _ -> [])
 
-let do_imp (p1: Proof.t) (p2: Proof.t) : Proof.t list = match p1, p2 with
-  | S _, S sp2 -> [S (SImpR sp2)]
-  | S sp1, V vp2 -> [V (VImp (sp1, vp2))]
-  | V vp1, S sp2 -> [S (SImpL vp1); S (SImpR sp2)]
-  | V vp1, V _ -> [S (SImpL vp1)]
+let do_or (p1: Proof.t) (p2: Proof.t) pol : Proof.t option =
+  Proof.Size.minp_list
+    (match p1, p2, pol with
+     | S sp1, S sp2, SAT -> [(S (SOrL (sp1))); (S (SOrR(sp2)))]
+     | S sp1, V _, SAT -> [S (SOrL (sp1))]
+     | V _ , S sp2, SAT -> [S (SOrR (sp2))]
+     | V vp1, V vp2, VIO -> [V (VOr (vp1, vp2))]
+     | _ -> [])
 
-let do_iff (p1: Proof.t) (p2: Proof.t) : Proof.t = match p1, p2 with
-  | S sp1, S sp2 -> S (SIffSS (sp1, sp2))
-  | S sp1, V vp2 -> V (VIffSV (sp1, vp2))
-  | V vp1, S sp2 -> V (VIffVS (vp1, sp2))
-  | V vp1, V vp2 -> S (SIffVV (vp1, vp2))
+let do_imp (p1: Proof.t) (p2: Proof.t) pol : Proof.t option =
+  Proof.Size.minp_list
+    (match p1, p2, pol with
+     | S _, S sp2, SAT -> [S (SImpR sp2)]
+     | S sp1, V vp2, VIO -> [V (VImp (sp1, vp2))]
+     | V vp1, S sp2, SAT -> [S (SImpL vp1); S (SImpR sp2)]
+     | V vp1, V _, SAT -> [S (SImpL vp1)]
+     | _ -> [])
+
+let do_iff (p1: Proof.t) (p2: Proof.t) pol : Proof.t option = match p1, p2, pol with
+  | S sp1, S sp2, SAT -> Some (S (SIffSS (sp1, sp2)))
+  | S sp1, V vp2, VIO -> Some (V (VIffSV (sp1, vp2)))
+  | V vp1, S sp2, VIO -> Some (V (VIffVS (vp1, sp2)))
+  | V vp1, V vp2, SAT -> Some (S (SIffVV (vp1, vp2)))
+  | _ -> None
 
 let do_exists_leaf x tc = function
   | Proof.S sp -> [Proof.S (SExists (x, Dom.tt_default tc, sp))]
@@ -106,8 +120,6 @@ let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
                   (fun d -> pdt_of tp r trms vars (find_maps d)) (pdt_of tp r trms vars []) in
      Node (x, part)
 
-type polarity = SAT | VIO
-
 let h_tp_ts = Hashtbl.create (module Int)
 
 module State = struct
@@ -120,6 +132,13 @@ module State = struct
 end
 
 let explain vars trace pol tp f =
+  let result expl1_opt expl2_opt do_op pol = match expl1_opt, expl2_opt with
+    | None, None -> None
+    | Some _, None -> None
+    | None, Some _ -> None
+    | Some expl1, Some expl2 ->
+       Pdt.prune_nones (Pdt.apply2_reduce Proof.equal_opt vars
+                          (fun p1 p2 -> (do_op p1 p2 pol)) expl1 expl2) in
   let rec eval pol tp (f: Formula.t) = match f with
     | TT -> (match pol with
              | SAT -> Some (Pdt.Leaf (Expl.Proof.S (STT tp)))
@@ -133,21 +152,13 @@ let explain vars trace pol tp f =
     | Predicate (r, trms) -> (match pol with
                               | SAT -> None
                               | VIO -> None)
-    | Neg f -> (match pol with
-                | SAT -> None
-                | VIO -> None)
-    | And (f1, f2) -> (match pol with
-                       | SAT -> None
-                       | VIO -> None)
-    | Or (f1, f2) -> (match pol with
-                      | SAT -> None
-                      | VIO -> None)
-    | Imp (f1, f2) -> (match pol with
-                       | SAT -> None
-                       | VIO -> None)
-    | Iff (f1, f2) -> (match pol with
-                       | SAT -> None
-                       | VIO -> None)
+    | Neg f -> (match eval pol tp f with
+                | None -> None
+                | Some expl -> Pdt.prune_nones (Pdt.apply1_reduce Proof.equal_opt vars (fun p -> do_neg p pol) expl))
+    | And (f1, f2) -> result (eval pol tp f1) (eval pol tp f2) do_and pol
+    | Or (f1, f2) -> result (eval pol tp f1) (eval pol tp f2) do_or pol
+    | Imp (f1, f2) -> result (eval pol tp f1) (eval pol tp f2) do_imp pol
+    | Iff (f1, f2) -> result (eval pol tp f1) (eval pol tp f2) do_iff pol
     | Exists (x, f) -> (match pol with
                         | SAT -> None
                         | VIO -> None)
