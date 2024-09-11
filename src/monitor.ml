@@ -131,15 +131,15 @@ module State = struct
 
 end
 
-let explain vars trace pol tp f =
-  let result expl1_opt expl2_opt do_op pol = match expl1_opt, expl2_opt with
+let explain trace pol tp f =
+  let result vars expl1_opt expl2_opt do_op pol = match expl1_opt, expl2_opt with
     | None, None -> None
     | Some _, None -> None
     | None, Some _ -> None
     | Some expl1, Some expl2 ->
        Pdt.prune_nones (Pdt.apply2_reduce Proof.equal_opt vars
                           (fun p1 p2 -> (do_op p1 p2 pol)) expl1 expl2) in
-  let rec eval pol tp (f: Formula.t) = match f with
+  let rec eval vars pol tp (f: Formula.t) = match f with
     | TT -> (match pol with
              | SAT -> Some (Pdt.Leaf (Expl.Proof.S (STT tp)))
              | VIO -> None)
@@ -152,19 +152,25 @@ let explain vars trace pol tp f =
     | Predicate (r, trms) -> (match pol with
                               | SAT -> None
                               | VIO -> None)
-    | Neg f -> (match eval pol tp f with
+    | Neg f -> (match eval vars pol tp f with
                 | None -> None
                 | Some expl -> Pdt.prune_nones (Pdt.apply1_reduce Proof.equal_opt vars (fun p -> do_neg p pol) expl))
-    | And (f1, f2) -> result (eval pol tp f1) (eval pol tp f2) do_and pol
-    | Or (f1, f2) -> result (eval pol tp f1) (eval pol tp f2) do_or pol
-    | Imp (f1, f2) -> result (eval pol tp f1) (eval pol tp f2) do_imp pol
-    | Iff (f1, f2) -> result (eval pol tp f1) (eval pol tp f2) do_iff pol
-    | Exists (x, f) -> (match pol with
-                        | SAT -> None
-                        | VIO -> None)
-    | Forall (x, f) -> (match pol with
-                        | SAT -> None
-                        | VIO -> None)
+    | And (f1, f2) -> result vars (eval vars pol tp f1) (eval vars pol tp f2) do_and pol
+    | Or (f1, f2) -> result vars (eval vars pol tp f1) (eval vars pol tp f2) do_or pol
+    | Imp (f1, f2) -> result vars (eval vars pol tp f1) (eval vars pol tp f2) do_imp pol
+    | Iff (f1, f2) -> result vars (eval vars pol tp f1) (eval vars pol tp f2) do_iff pol
+    | Exists (x, tc, f) ->
+       (match eval vars pol tp f with
+        | None -> None
+        | Some expl -> Pdt.prune_nones (Pdt.hide_reduce Proof.equal_opt (vars @ [x])
+                                          (fun p -> Proof.Size.minp_list (do_exists_leaf x tc p))
+                                          (fun p -> Proof.Size.minp_list (do_exists_node x tc p)) expl))
+    | Forall (x, tc, f) ->
+       (match eval vars pol tp f with
+        | None -> None
+        | Some expl -> Pdt.prune_nones (Pdt.hide_reduce Proof.equal_opt (vars @ [x])
+                                          (fun p -> Proof.Size.minp_list (do_forall_leaf x tc p))
+                                          (fun p -> Proof.Size.minp_list (do_forall_node x tc p)) expl))
     | Prev (i, f) -> (match pol with
                       | SAT -> None
                       | VIO -> None)
@@ -184,22 +190,22 @@ let explain vars trace pol tp f =
                         | SAT -> None
                         | VIO -> None)
     | Since (i, f1, f2) -> (match pol with
-                            | SAT -> since_sat i f1 f2 tp []
+                            | SAT -> since_sat vars i f1 f2 tp []
                             | VIO -> None)
     | Until (i, f1, f2) -> (match pol with
                             | SAT -> None
                             | VIO -> None)
-  and since_sat i f1 f2 tp alphas_sat =
+  and since_sat vars i f1 f2 tp alphas_sat =
     let continue_alphas_sat i f1 f2 tp alphas_sat =
-      (match eval SAT tp f1 with
+      (match eval vars SAT tp f1 with
        | Some expl -> (match Hashtbl.find h_tp_ts (tp - 1) with
                        | Some ts' -> let ts = Hashtbl.find_exn h_tp_ts tp in
-                                     since_sat (Interval.sub (ts - ts') i)
+                                     since_sat vars (Interval.sub (ts - ts') i)
                                        f1 f2 (tp - 1) (expl :: alphas_sat)
                        | None -> None)
        | None -> None) in
     if Interval.mem 0 i then
-      (match eval SAT tp f2 with
+      (match eval vars SAT tp f2 with
        | Some expl ->
           Some (List.fold alphas_sat ~init:expl ~f:(fun ssince_expl alpha_sat ->
                     Pdt.apply2_reduce Proof.equal vars
@@ -217,7 +223,7 @@ let explain vars trace pol tp f =
       None
     else
       None in
-  eval pol tp f
+  eval (Set.elements (Formula.fv f)) pol tp f
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
 let read ~domain_mgr r_source r_sink end_of_stream mon f trace =
