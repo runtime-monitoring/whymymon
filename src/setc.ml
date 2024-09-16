@@ -20,6 +20,10 @@ let length = function
 
 let univ m = Complement (Set.empty m)
 
+let is_univ = function
+  | Complement s when Set.is_empty s -> true
+  | _ -> false
+
 let equal cs1 cs2 = match cs1, cs2 with
   | Finite s1, Finite s2 -> Set.equal s1 s2
   | Complement s1, Complement s2 -> Set.equal s1 s2

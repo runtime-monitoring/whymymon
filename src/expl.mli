@@ -30,6 +30,7 @@ module Part : sig
   val exists: 'a t -> ('a -> bool) -> bool
   val for_all: 'a t -> ('a -> bool) -> bool
   val values: 'a t -> 'a list
+  val of_list: ((Dom.t, Dom.comparator_witness) Setc.t * 'a) list -> 'a t
   val tabulate: (Dom.t, Dom.comparator_witness) Set.t -> (Dom.t -> 'a) -> 'a -> 'a t
 
   val dedup: ('a -> 'a -> bool) -> 'a t -> 'a t

@@ -49,6 +49,13 @@ module Part = struct
 
   let values part = List.map part ~f:(fun (_, p) -> p)
 
+  let of_list l =
+    let univ_union = Setc.is_univ
+                       (List.fold l ~init:(Setc.Finite (Set.of_list (module Dom) []))
+                          ~f:(fun acc (s, _) -> Setc.union acc s)) in
+    if univ_union then l
+    else raise (Invalid_argument (Printf.sprintf "the union of subsets does not amount to a partition"))
+
   let equal part part' eq =
     let equal_fst = match List.for_all2 (List.map part ~f:fst) (List.map part' ~f:fst) ~f:Setc.equal with
       | Ok b -> b
