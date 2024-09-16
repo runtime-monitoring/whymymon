@@ -86,38 +86,23 @@ let do_forall_node x tc part =
                                   (Setc.Finite (Set.of_list (module Dom) [witness]),
                                    Proof.V (Proof.VForall (x, Setc.some_elt tc s, vp))))))))
 
-let rec match_terms trms ds map =
-  match trms, ds with
-  | [], [] -> Some(map)
-  | Term.Const c :: trms, d :: ds -> if Dom.equal c d then match_terms trms ds map else None
-  | Var x :: trms, d :: ds -> (match match_terms trms ds map with
-                               | None -> None
-                               | Some(map') -> (match Map.find map' x with
-                                                | None -> let map'' = Map.add_exn map' ~key:x ~data:d in Some(map'')
-                                                | Some z -> (if Dom.equal d z then Some map' else None)))
-  | _, _ -> None
-
 let print_maps maps =
   Stdio.print_endline "> Map:";
   List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
                                     Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))
 
-let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
-  | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
-          else Leaf (S (SPred (tp, r, trms)))
+let rec pdt_of tp r trms (vars: string list) map_opt pol : Proof.t option Pdt.t = match vars with
+  | [] -> (match pol with
+           | SAT when Option.is_some map_opt -> Leaf (Some (S (SPred (tp, r, trms))))
+           | VIO when Option.is_none map_opt -> Leaf (Some (V (VPred (tp, r, trms))))
+           | _ -> Leaf None)
   | x :: vars ->
-     let ds = List.fold maps ~init:[]
-                ~f:(fun acc map -> match Map.find map x with
-                                   | None -> acc
-                                   | Some(d) -> d :: acc) in
-     let find_maps d = List.fold maps ~init:[]
-                         ~f:(fun acc map -> match Map.find map x with
-                                            | None -> acc
-                                            | Some(d') -> if Dom.equal d d' then
-                                                            map :: acc
-                                                          else acc) in
-     let part = Part.tabulate_dedup (Pdt.equal Proof.equal) (Set.of_list (module Dom) ds)
-                  (fun d -> pdt_of tp r trms vars (find_maps d)) (pdt_of tp r trms vars []) in
+     let map = Option.value_exn map_opt in
+     let d = match Map.find map x with
+       | None -> raise (Invalid_argument (Printf.sprintf "could not find value of %s in map" x))
+       | Some(d) -> d in
+     let part = Part.tabulate_dedup (Pdt.equal Proof.equal_opt) (Set.of_list (module Dom) [d])
+                  (fun d -> pdt_of tp r trms vars map_opt pol) (pdt_of tp r trms vars None pol) in
      Node (x, part)
 
 let h_tp_ts = Hashtbl.create (module Int)
@@ -131,7 +116,7 @@ module State = struct
 
 end
 
-let explain trace pol tp f =
+let explain trace assignment pol tp f =
   let result vars expl1_opt expl2_opt do_op pol = match expl1_opt, expl2_opt with
     | None, None -> None
     | Some _, None -> None
@@ -149,9 +134,15 @@ let explain trace pol tp f =
     | EqConst (x, d) -> (match pol with
                          | SAT -> None
                          | VIO -> None)
-    | Predicate (r, trms) -> (match pol with
-                              | SAT -> None
-                              | VIO -> None)
+    | Predicate (r, trms) ->
+       let db' = Set.filter (snd (Array.get trace tp)) ~f:(fun evt -> String.equal r (fst(evt))) in
+       if List.is_empty trms then
+         if Set.is_empty db' then Some (Pdt.Leaf (Proof.V (VPred (tp, r, trms))))
+         else Some(Pdt.Leaf (S (SPred (tp, r, trms))))
+       else
+         let pred_fvs = Set.elements (Formula.fv (Predicate (r, trms))) in
+         let pred_fvs_vars = List.filter vars ~f:(fun var -> List.mem pred_fvs var ~equal:String.equal) in
+         Pdt.prune_nones (pdt_of tp r trms pred_fvs_vars assignment pol)
     | Neg f -> (match eval vars pol tp f with
                 | None -> None
                 | Some expl -> Pdt.prune_nones (Pdt.apply1_reduce Proof.equal_opt vars (fun p -> do_neg p pol) expl))
@@ -252,7 +243,7 @@ let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream trace =
                            step (Some(pb))
     | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
                       Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) w_sink;
-                      trace := Fdeque.enqueue_back !trace (pb.ts, pb.db);
+                      trace := Array.append !trace [|(pb.ts, pb.db)|];
                       Fiber.yield ();
                       step (Some(pb)) in
   step None
@@ -276,7 +267,7 @@ let exec mon ~mon_path ?sig_path stream f pref mode extra_args =
       (* signals end of stream *)
       let end_of_stream = ref false in
       (* accumulated trace ref *)
-      let trace = ref Fdeque.empty in
+      let trace = ref [||]  in
       try
         Fiber.all
           [ (* Spawn thread with external monitor process *)
