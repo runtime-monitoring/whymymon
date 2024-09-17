@@ -13,15 +13,23 @@ open Expl
 open Pred
 open Eio.Std
 
-type polarity = SAT | VIO
+module Polarity = struct
 
-let do_neg (p: Proof.t) pol = match p, pol with
+  type t = SAT | VIO
+
+  let invert = function
+    | SAT -> VIO
+    | VIO -> SAT
+
+end
+
+let do_neg (p: Proof.t) (pol: Polarity.t) = match p, pol with
   | S sp, SAT -> Some (Proof.V (VNeg sp))
   | S _ , VIO -> None
   | V _ , SAT -> None
   | V vp, VIO -> Some (S (SNeg vp))
 
-let do_and (p1: Proof.t) (p2: Proof.t) pol : Proof.t option =
+let do_and (p1: Proof.t) (p2: Proof.t) (pol: Polarity.t) : Proof.t option =
   Proof.Size.minp_list
     (match p1, p2, pol with
      | S sp1, S sp2, SAT -> [Proof.S (SAnd (sp1, sp2))]
@@ -30,7 +38,7 @@ let do_and (p1: Proof.t) (p2: Proof.t) pol : Proof.t option =
      | V vp1, V vp2, VIO -> [(V (VAndL (vp1))); (V (VAndR (vp2)))]
      | _ -> [])
 
-let do_or (p1: Proof.t) (p2: Proof.t) pol : Proof.t option =
+let do_or (p1: Proof.t) (p2: Proof.t) (pol: Polarity.t) : Proof.t option =
   Proof.Size.minp_list
     (match p1, p2, pol with
      | S sp1, S sp2, SAT -> [(S (SOrL (sp1))); (S (SOrR(sp2)))]
@@ -39,7 +47,7 @@ let do_or (p1: Proof.t) (p2: Proof.t) pol : Proof.t option =
      | V vp1, V vp2, VIO -> [V (VOr (vp1, vp2))]
      | _ -> [])
 
-let do_imp (p1: Proof.t) (p2: Proof.t) pol : Proof.t option =
+let do_imp (p1: Proof.t) (p2: Proof.t) (pol: Polarity.t) : Proof.t option =
   Proof.Size.minp_list
     (match p1, p2, pol with
      | S _, S sp2, SAT -> [S (SImpR sp2)]
@@ -48,7 +56,7 @@ let do_imp (p1: Proof.t) (p2: Proof.t) pol : Proof.t option =
      | V vp1, V _, SAT -> [S (SImpL vp1)]
      | _ -> [])
 
-let do_iff (p1: Proof.t) (p2: Proof.t) pol : Proof.t option = match p1, p2, pol with
+let do_iff (p1: Proof.t) (p2: Proof.t) (pol: Polarity.t) : Proof.t option = match p1, p2, pol with
   | S sp1, S sp2, SAT -> Some (S (SIffSS (sp1, sp2)))
   | S sp1, V vp2, VIO -> Some (V (VIffSV (sp1, vp2)))
   | V vp1, S sp2, VIO -> Some (V (VIffVS (vp1, sp2)))
@@ -91,7 +99,7 @@ let print_maps maps =
   List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
                                     Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))
 
-let rec pdt_of tp r trms (vars: string list) map_opt pol : Proof.t option Pdt.t = match vars with
+let rec pdt_of tp r trms (vars: string list) map_opt (pol: Polarity.t) : Proof.t option Pdt.t = match vars with
   | [] -> (match pol with
            | SAT when Option.is_some map_opt -> Leaf (Some (S (SPred (tp, r, trms))))
            | VIO when Option.is_none map_opt -> Leaf (Some (V (VPred (tp, r, trms))))
@@ -102,7 +110,8 @@ let rec pdt_of tp r trms (vars: string list) map_opt pol : Proof.t option Pdt.t 
        | None -> raise (Invalid_argument (Printf.sprintf "could not find value of %s in map" x))
        | Some(d) -> d in
      let part = Part.tabulate_dedup (Pdt.equal Proof.equal_opt) (Set.of_list (module Dom) [d])
-                  (fun d -> pdt_of tp r trms vars map_opt pol) (pdt_of tp r trms vars None pol) in
+                  (fun d -> pdt_of tp r trms vars map_opt pol)
+                  (pdt_of tp r trms vars None (Polarity.invert pol)) in
      Node (x, part)
 
 let h_tp_ts = Hashtbl.create (module Int)
@@ -110,7 +119,7 @@ let h_tp_ts = Hashtbl.create (module Int)
 module State = struct
 
   type t = { f: Formula.t
-           ; pol: polarity
+           ; pol: Polarity.t
            ; tp: timepoint
            ; expl: Expl.t }
 
@@ -124,7 +133,7 @@ let explain trace v pol tp f =
     | Some expl1, Some expl2 ->
        Pdt.prune_nones (Pdt.apply2_reduce Proof.equal_opt vars
                           (fun p1 p2 -> (do_op p1 p2 pol)) expl1 expl2) in
-  let rec eval vars pol tp (f: Formula.t) = match f with
+  let rec eval vars (pol: Polarity.t) tp (f: Formula.t) = match f with
     | TT -> (match pol with
              | SAT -> Some (Pdt.Leaf (Expl.Proof.S (STT tp)))
              | VIO -> None)
