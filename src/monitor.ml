@@ -21,6 +21,10 @@ module Polarity = struct
     | SAT -> VIO
     | VIO -> SAT
 
+  let of_pref = function
+    | Argument.Preference.Satisfaction -> SAT
+    | Violation -> VIO
+
 end
 
 let do_neg (p: Proof.t) (pol: Polarity.t) = match p, pol with
@@ -207,26 +211,55 @@ let explain trace v pol tp f =
   and since_sat vars i f1 f2 tp alphas_sat =
     let continue_alphas_sat i f1 f2 tp alphas_sat =
       (match eval vars SAT tp f1 with
-       | Some expl -> (match Hashtbl.find h_tp_ts (tp - 1) with
-                       | Some ts' -> let ts = Hashtbl.find_exn h_tp_ts tp in
-                                     since_sat vars (Interval.sub (ts - ts') i)
-                                       f1 f2 (tp - 1) (expl :: alphas_sat)
-                       | None -> None)
+       | Some expl1 ->
+          (* Found alpha satisfaction within the interval *)
+          (match Hashtbl.find h_tp_ts (tp - 1) with
+           | Some ts' -> let ts = Hashtbl.find_exn h_tp_ts tp in
+                         since_sat vars (Interval.sub (ts - ts') i)
+                           f1 f2 (tp - 1) (expl1 :: alphas_sat)
+           | None -> None)
        | None -> None) in
     if Interval.mem 0 i then
       (match eval vars SAT tp f2 with
-       | Some expl ->
-          Some (List.fold alphas_sat ~init:expl ~f:(fun ssince_expl alpha_sat ->
+       | Some expl2 ->
+          (* Found beta satisfaction within the interval *)
+          let ssince_expl = Pdt.apply1_reduce Proof.equal vars
+                              (fun sp2 -> Proof.S (SSince (Proof.unS sp2, Fdeque.empty))) expl2 in
+          Some (List.fold alphas_sat ~init:ssince_expl ~f:(fun expl alpha_sat ->
                     Pdt.apply2_reduce Proof.equal vars
                       (fun sp sp1 -> Proof.s_append sp sp1)
-                      ssince_expl alpha_sat))
+                      expl alpha_sat))
        | None -> continue_alphas_sat i f1 f2 tp alphas_sat)
     else continue_alphas_sat i f1 f2 tp alphas_sat
-  and since_vio i f1 f2 tp alphas_sat =
-    if Interval.mem 0 i then
-      None
+  and since_vio vars i f1 f2 cur_tp tp betas_vio =
+    (* let continue_betas_vio i f1 f2 tp betas_vio = *)
+    (*   (match eval vars VIO tp f2 with *)
+    (*    | Some expl2 -> *)
+    (*       (\* Found beta violation within the interval *\) *)
+    (*       (match Hashtbl.find h_tp_ts (tp - 1) with *)
+    (*        | Some ts' -> let ts = Hashtbl.find_exn h_tp_ts tp in *)
+    (*                      since_vio vars (Interval.sub (ts - ts') i) *)
+    (*                        f1 f2 (tp - 1) (expl2 :: betas_vio) *)
+    (*        | None -> None) *)
+    (*    | None -> None) in *)
+    (* The interval has not started yet *)
+    if not (Interval.mem 0 i) && Int.equal tp 0 then
+      Some (Pdt.Leaf (Proof.V (VSinceOut cur_tp)))
     else
-      None
+      (if Interval.mem 0 i then
+         (match eval vars VIO tp f1 with
+          | Some expl1 ->
+             (* Found alpha violation within the interval *)
+             let vsince_expl = Pdt.apply1_reduce Proof.equal vars
+                                 (fun vp1 -> Proof.V (VSince (cur_tp, Proof.unV vp1, Fdeque.empty))) expl1 in
+             Some (List.fold betas_vio ~init:vsince_expl ~f:(fun expl beta_vio ->
+                       Pdt.apply2_reduce Proof.equal vars
+                         (fun vp vp2 -> Proof.v_append vp vp2)
+                         expl beta_vio))
+          | None ->
+             (* Continue collecting beta violations *)
+             let x = () in None)
+       else None)
   and until_sat i f1 f2 tp =
     if Interval.mem 0 i then
       None
@@ -235,7 +268,7 @@ let explain trace v pol tp f =
   eval (Set.elements (Formula.fv f)) pol tp f
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
-let read ~domain_mgr r_source r_sink end_of_stream mon f trace =
+let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol =
   let vars = Set.elements (Formula.fv f) in
   let buf = Eio.Buf_read.of_flow r_source ~initial_size:100 ~max_size:1_000_000 in
   let stop = ref false in
@@ -246,6 +279,15 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f trace =
     if String.equal line "Stop" then raise Exit;
     let assignments = Emonitor.to_assignments mon vars line in
     traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
+    let tp = Array.length trace - 1 in
+    List.iter assignments ~f:(fun v ->
+        match explain trace v pol tp f with
+        | Some (expl) ->
+           (let (b, _, _) = List.hd_exn (Checker_interface.check (Array.to_list trace) f [expl]) in
+            let paths = Checker_interface.false_paths (Array.to_list trace) f [expl] in
+            Stdio.printf "%d:%d\nExplanation: \n\n%s\n" (fst (Array.get trace tp)) tp (Expl.to_string expl);
+            Stdio.printf "\nChecker output: %B\n\n" b)
+        | _ -> ());
     if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
     Fiber.yield ()
   done
@@ -302,7 +344,7 @@ let exec mon ~mon_path ?sig_path stream f pref mode extra_args =
             (fun () -> traceln "Writing lines to emonitor's stdin...";
                        write_lines mon stream w_sink end_of_stream trace);
             (fun () -> traceln "Reading lines from emonitor's stdout...";
-                       read ~domain_mgr r_source r_sink end_of_stream mon f trace)
+                       read ~domain_mgr r_source r_sink end_of_stream mon f !trace (Polarity.of_pref pref))
           ];
       with Exit -> Stdio.printf "Reached the end of the log file.\n"
     );
