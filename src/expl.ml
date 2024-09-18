@@ -955,6 +955,10 @@ module Pdt = struct
                                    else hide_reduce p_eq vars f_leaf f_node (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
 
+  let rec add_somes = function
+    | Leaf l -> Leaf (Some l)
+    | Node (x, part) -> Node (x, Part.map part (fun expl -> add_somes expl))
+
   let rec prune_nones = function
     | Leaf l_opt -> (match l_opt with
                      | None -> None

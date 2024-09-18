@@ -153,6 +153,7 @@ module Pdt : sig
   val split_prod_reduce: ('a -> 'a -> bool) -> ('a * 'a) t -> 'a t * 'a t
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
   val hide_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
+  val add_somes: 'a t -> 'a option t
   val prune_nones: 'a option t -> 'a t option
 
 end

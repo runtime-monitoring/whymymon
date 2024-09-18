@@ -27,49 +27,64 @@ module Polarity = struct
 
 end
 
-let do_neg (p: Proof.t) (pol: Polarity.t) = match p, pol with
-  | S sp, SAT -> Some (Proof.V (VNeg sp))
-  | S _ , VIO -> None
-  | V _ , SAT -> None
-  | V vp, VIO -> Some (S (SNeg vp))
+let do_neg (p_opt: Proof.t option) (pol: Polarity.t) =
+  match p_opt with
+  | None -> None
+  | Some p -> (match p, pol with
+               | S sp, SAT -> Some (Proof.V (VNeg sp))
+               | S _ , VIO -> None
+               | V _ , SAT -> None
+               | V vp, VIO -> Some (S (SNeg vp)))
 
-let do_and (p1: Proof.t) (p2: Proof.t) (pol: Polarity.t) : Proof.t option =
-  Proof.Size.minp_list
-    (match p1, p2, pol with
-     | S sp1, S sp2, SAT -> [Proof.S (SAnd (sp1, sp2))]
-     | S _ , V vp2, VIO -> [V (VAndR (vp2))]
-     | V vp1, S _, VIO -> [V (VAndL (vp1))]
-     | V vp1, V vp2, VIO -> [(V (VAndL (vp1))); (V (VAndR (vp2)))]
-     | _ -> [])
-
-let do_or (p1: Proof.t) (p2: Proof.t) (pol: Polarity.t) : Proof.t option =
-  Proof.Size.minp_list
-    (match p1, p2, pol with
-     | S sp1, S sp2, SAT -> [(S (SOrL (sp1))); (S (SOrR(sp2)))]
-     | S sp1, V _, SAT -> [S (SOrL (sp1))]
-     | V _ , S sp2, SAT -> [S (SOrR (sp2))]
-     | V vp1, V vp2, VIO -> [V (VOr (vp1, vp2))]
-     | _ -> [])
-
-let do_imp (p1: Proof.t) (p2: Proof.t) (pol: Polarity.t) : Proof.t option =
-  Proof.Size.minp_list
-    (match p1, p2, pol with
-     | S _, S sp2, SAT -> [S (SImpR sp2)]
-     | S sp1, V vp2, VIO -> [V (VImp (sp1, vp2))]
-     | V vp1, S sp2, SAT -> [S (SImpL vp1); S (SImpR sp2)]
-     | V vp1, V _, SAT -> [S (SImpL vp1)]
-     | _ -> [])
-
-let do_iff (p1: Proof.t) (p2: Proof.t) (pol: Polarity.t) : Proof.t option = match p1, p2, pol with
-  | S sp1, S sp2, SAT -> Some (S (SIffSS (sp1, sp2)))
-  | S sp1, V vp2, VIO -> Some (V (VIffSV (sp1, vp2)))
-  | V vp1, S sp2, VIO -> Some (V (VIffVS (vp1, sp2)))
-  | V vp1, V vp2, SAT -> Some (S (SIffVV (vp1, vp2)))
+let do_and (p1_opt: Proof.t option) (p2_opt: Proof.t option) (pol: Polarity.t) : Proof.t option =
+  match p1_opt, p2_opt with
+  | Some p1, Some p2 -> Proof.Size.minp_list
+                          (match p1, p2, pol with
+                           | S sp1, S sp2, SAT -> [Proof.S (SAnd (sp1, sp2))]
+                           | S _ , V vp2, VIO -> [V (VAndR (vp2))]
+                           | V vp1, S _, VIO -> [V (VAndL (vp1))]
+                           | V vp1, V vp2, VIO -> [(V (VAndL (vp1))); (V (VAndR (vp2)))]
+                           | _ -> [])
   | _ -> None
 
-let do_exists_leaf x tc = function
-  | Proof.S sp -> [Proof.S (SExists (x, Dom.tt_default tc, sp))]
-  | V vp -> [Proof.V (VExists (x, Part.trivial vp))]
+
+let do_or (p1_opt: Proof.t option) (p2_opt: Proof.t option) (pol: Polarity.t) : Proof.t option =
+  match p1_opt, p2_opt with
+  | Some p1, Some p2 -> Proof.Size.minp_list
+                          (match p1, p2, pol with
+                           | S sp1, S sp2, SAT -> [(S (SOrL (sp1))); (S (SOrR(sp2)))]
+                           | S sp1, V _, SAT -> [S (SOrL (sp1))]
+                           | V _ , S sp2, SAT -> [S (SOrR (sp2))]
+                           | V vp1, V vp2, VIO -> [V (VOr (vp1, vp2))]
+                           | _ -> [])
+  | _ -> None
+
+let do_imp (p1_opt: Proof.t option) (p2_opt: Proof.t option) (pol: Polarity.t) : Proof.t option =
+  match p1_opt, p2_opt with
+  | Some p1, Some p2 -> Proof.Size.minp_list
+                          (match p1, p2, pol with
+                           | S _, S sp2, SAT -> [S (SImpR sp2)]
+                           | S sp1, V vp2, VIO -> [V (VImp (sp1, vp2))]
+                           | V vp1, S sp2, SAT -> [S (SImpL vp1); S (SImpR sp2)]
+                           | V vp1, V _, SAT -> [S (SImpL vp1)]
+                           | _ -> [])
+  | _ -> None
+
+let do_iff (p1_opt: Proof.t option) (p2_opt: Proof.t option) (pol: Polarity.t) : Proof.t option =
+  match p1_opt, p2_opt with
+  | Some p1, Some p2 -> (match p1, p2, pol with
+                         | S sp1, S sp2, SAT -> Some (S (SIffSS (sp1, sp2)))
+                         | S sp1, V vp2, VIO -> Some (V (VIffSV (sp1, vp2)))
+                         | V vp1, S sp2, VIO -> Some (V (VIffVS (vp1, sp2)))
+                         | V vp1, V vp2, SAT -> Some (S (SIffVV (vp1, vp2)))
+                         | _ -> None)
+
+let do_exists_leaf x tc p_opt =
+  match p_opt with
+  | Some p -> (match p with
+               | Proof.S sp -> Some (Proof.S (SExists (x, Dom.tt_default tc, sp)))
+               | V vp -> Some (V (VExists (x, Part.trivial vp))))
+  | None -> None
 
 let do_exists_node x tc part =
   if Part.exists part Proof.isS then
@@ -146,32 +161,27 @@ end
 
 
 let explain trace v pol tp f =
-  let result vars expl1_opt expl2_opt do_op pol = match expl1_opt, expl2_opt with
-    | None, None -> None
-    | Some _, None -> None
-    | None, Some _ -> None
-    | Some expl1, Some expl2 ->
-       Pdt.prune_nones (Pdt.apply2_reduce Proof.equal_opt vars
-                          (fun p1 p2 -> (do_op p1 p2 pol)) expl1 expl2) in
   let rec eval vars (pol: Polarity.t) tp (f: Formula.t) = match f with
-    | TT -> (match pol with
-             | SAT -> Some (Pdt.Leaf (Expl.Proof.S (STT tp)))
-             | VIO -> None)
-    | FF -> (match pol with
-             | SAT -> None
-             | VIO -> Some (Pdt.Leaf (Expl.Proof.V (VFF tp))))
+    | TT ->
+       (match pol with
+        | SAT -> Pdt.Leaf (Some (Expl.Proof.S (STT tp)))
+        | VIO -> Pdt.Leaf None)
+    | FF ->
+       (match pol with
+        | SAT -> Pdt.Leaf None
+        | VIO -> Pdt.Leaf (Some (Expl.Proof.V (VFF tp))))
     | EqConst (x, d) ->
-       let l1 = Pdt.Leaf (Proof.S (SEqConst (tp, x, d))) in
-       let l2 = Pdt.Leaf (Proof.V (VEqConst (tp, x, d))) in
+       let l1 = Pdt.Leaf (Some (Proof.S (SEqConst (tp, x, d)))) in
+       let l2 = Pdt.Leaf (Some (Proof.V (VEqConst (tp, x, d)))) in
        (match pol, Map.find v x with
-        | SAT, Some d' when Dom.equal d d' -> Some l1
-        | VIO, Some d' when not (Dom.equal d d') -> Some l2
+        | SAT, Some d' when Dom.equal d d' -> l1
+        | VIO, Some d' when not (Dom.equal d d') -> l2
         | SAT, None ->
-           Some (Pdt.Node (x, Part.of_list [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
-                                            (Setc.Finite (Set.of_list (module Dom) [d]), l1)]))
+           Pdt.Node (x, Part.of_list [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
+                                      (Setc.Finite (Set.of_list (module Dom) [d]), l1)])
         | VIO, None ->
-           Some (Pdt.Node (x, Part.of_list [(Setc.Complement (Set.of_list (module Dom) [d]), l1);
-                                            (Setc.Finite (Set.of_list (module Dom) [d]), l2)])))
+           Pdt.Node (x, Part.of_list [(Setc.Complement (Set.of_list (module Dom) [d]), l1);
+                                      (Setc.Finite (Set.of_list (module Dom) [d]), l2)]))
     | Predicate (r, trms) ->
        (* Replace trms with values coming from variable assignment v *)
        let trms = List.map trms ~f:(fun trm -> if Pred.Term.is_var trm then
@@ -187,74 +197,89 @@ let explain trace v pol tp f =
                                                                  | Some(map) -> not (Map.is_empty map)))
                      ~f:(fun map_opt -> Option.value_exn map_opt) in
        let pred_fvs = Set.elements (Formula.fv (Predicate (r, trms))) in
-       Some (pdt_of tp r trms pred_fvs maps')
-    | Neg f -> (match eval vars pol tp f with
-                | None -> None
-                | Some expl -> Pdt.prune_nones (Pdt.apply1_reduce Proof.equal_opt vars (fun p -> do_neg p pol) expl))
-    | And (f1, f2) -> result vars (eval vars pol tp f1) (eval vars pol tp f2) do_and pol
-    | Or (f1, f2) -> result vars (eval vars pol tp f1) (eval vars pol tp f2) do_or pol
-    | Imp (f1, f2) -> result vars (eval vars pol tp f1) (eval vars pol tp f2) do_imp pol
-    | Iff (f1, f2) -> result vars (eval vars pol tp f1) (eval vars pol tp f2) do_iff pol
-    | Exists (x, tc, f) ->
-       (match eval vars pol tp f with
-        | None -> None
-        | Some expl -> Pdt.prune_nones (Pdt.hide_reduce Proof.equal_opt (vars @ [x])
-                                          (fun p -> Proof.Size.minp_list (do_exists_leaf x tc p))
-                                          (fun p -> Proof.Size.minp_list (do_exists_node x tc p)) expl))
-    | Forall (x, tc, f) ->
-       (match eval vars pol tp f with
-        | None -> None
-        | Some expl -> Pdt.prune_nones (Pdt.hide_reduce Proof.equal_opt (vars @ [x])
-                                          (fun p -> Proof.Size.minp_list (do_forall_leaf x tc p))
-                                          (fun p -> Proof.Size.minp_list (do_forall_node x tc p)) expl))
+       Pdt.add_somes (pdt_of tp r trms pred_fvs maps')
+    | Neg f ->
+       let expl = eval vars pol tp f in
+       Pdt.apply1_reduce Proof.equal_opt vars (fun p_opt -> do_neg p_opt pol) expl
+    | And (f1, f2) ->
+       let expl1 = eval vars pol tp f1 in
+       let expl2 = eval vars pol tp f2 in
+       Pdt.apply2_reduce Proof.equal_opt vars
+         (fun p1_opt p2_opt -> (do_and p1_opt p2_opt pol)) expl1 expl2
+    | Or (f1, f2) ->
+       let expl1 = eval vars pol tp f1 in
+       let expl2 = eval vars pol tp f2 in
+       Pdt.apply2_reduce Proof.equal_opt vars
+         (fun p1_opt p2_opt -> (do_or p1_opt p2_opt pol)) expl1 expl2
+    | Imp (f1, f2) ->
+       let expl1 = eval vars pol tp f1 in
+       let expl2 = eval vars pol tp f2 in
+       Pdt.apply2_reduce Proof.equal_opt vars
+         (fun p1_opt p2_opt -> (do_imp p1_opt p2_opt pol)) expl1 expl2
+    | Iff (f1, f2) ->
+       let expl1 = eval vars pol tp f1 in
+       let expl2 = eval vars pol tp f2 in
+       Pdt.apply2_reduce Proof.equal_opt vars
+         (fun p1_opt p2_opt -> (do_iff p1_opt p2_opt pol)) expl1 expl2
+    | Exists (x, tc, f) -> Pdt.Leaf None
+       (* let expl = eval vars pol tp f in *)
+       (* Pdt.hide_reduce Proof.equal_opt (vars @ [x]) *)
+       (*   (fun p_opt -> do_exists_leaf x tc p_opt) *)
+       (*   (fun part -> Proof.Size.minp_list (do_exists_node x tc part)) expl *)
+    | Forall (x, tc, f) -> Pdt.Leaf None
+       (* (match eval vars pol tp f with *)
+       (*  | None -> None *)
+       (*  | Some expl -> Pdt.prune_nones (Pdt.hide_reduce Proof.equal_opt (vars @ [x]) *)
+       (*                                    (fun p -> Proof.Size.minp_list (do_forall_leaf x tc p)) *)
+       (*                                    (fun p -> Proof.Size.minp_list (do_forall_node x tc p)) expl)) *)
     | Prev (i, f) -> (match pol with
-                      | SAT -> None
-                      | VIO -> None)
+                      | SAT -> Pdt.Leaf None
+                      | VIO -> Pdt.Leaf None)
     | Next (i, f) -> (match pol with
-                      | SAT -> None
-                      | VIO -> None)
+                      | SAT -> Pdt.Leaf None
+                      | VIO -> Pdt.Leaf None)
     | Once (i, f) -> (match pol with
-                      | SAT -> None
-                      | VIO -> None)
+                      | SAT -> Pdt.Leaf None
+                      | VIO -> Pdt.Leaf None)
     | Eventually (i, f) -> (match pol with
-                            | SAT -> None
-                            | VIO -> None)
+                            | SAT -> Pdt.Leaf None
+                            | VIO -> Pdt.Leaf None)
     | Historically (i, f) -> (match pol with
-                              | SAT -> None
-                              | VIO -> None)
+                              | SAT -> Pdt.Leaf None
+                              | VIO -> Pdt.Leaf None)
     | Always (i, f) -> (match pol with
-                        | SAT -> None
-                        | VIO -> None)
+                        | SAT -> Pdt.Leaf None
+                        | VIO -> Pdt.Leaf None)
     | Since (i, f1, f2) -> (match pol with
                             | SAT -> since_sat vars i f1 f2 tp []
-                            | VIO -> None)
+                            | VIO -> Pdt.Leaf None)
     | Until (i, f1, f2) -> (match pol with
-                            | SAT -> None
-                            | VIO -> None)
-  and since_sat vars i f1 f2 tp alphas_sat =
-    let continue_alphas_sat i f1 f2 tp alphas_sat =
-      (match eval vars SAT tp f1 with
-       | Some expl1 ->
-          (* Found alpha satisfaction within the interval *)
-          (match Hashtbl.find h_tp_ts (tp - 1) with
-           | Some ts' -> let ts = Hashtbl.find_exn h_tp_ts tp in
-                         since_sat vars (Interval.sub (ts - ts') i)
-                           f1 f2 (tp - 1) (expl1 :: alphas_sat)
-           | None -> None)
-       | None -> None) in
-    if Interval.mem 0 i then
-      (match eval vars SAT tp f2 with
-       | Some expl2 ->
-          (* Found beta satisfaction within the interval *)
-          let ssince_expl = Pdt.apply1_reduce Proof.equal vars
-                              (fun sp2 -> Proof.S (SSince (Proof.unS sp2, Fdeque.empty))) expl2 in
-          Some (List.fold alphas_sat ~init:ssince_expl ~f:(fun expl alpha_sat ->
-                    Pdt.apply2_reduce Proof.equal vars
-                      (fun sp sp1 -> Proof.s_append sp sp1)
-                      expl alpha_sat))
-       | None -> continue_alphas_sat i f1 f2 tp alphas_sat)
-    else continue_alphas_sat i f1 f2 tp alphas_sat
-  and since_vio vars i f1 f2 cur_tp tp betas_vio =
+                            | SAT -> Pdt.Leaf None
+                            | VIO -> Pdt.Leaf None)
+  and since_sat vars i f1 f2 tp alphas_sat = Pdt.Leaf None
+    (* let continue_alphas_sat i f1 f2 tp alphas_sat = *)
+    (*   (match eval vars SAT tp f1 with *)
+    (*    | Some expl1 -> *)
+    (*       (\* Found alpha satisfaction within the interval *\) *)
+    (*       (match Hashtbl.find h_tp_ts (tp - 1) with *)
+    (*        | Some ts' -> let ts = Hashtbl.find_exn h_tp_ts tp in *)
+    (*                      since_sat vars (Interval.sub (ts - ts') i) *)
+    (*                        f1 f2 (tp - 1) (expl1 :: alphas_sat) *)
+    (*        | None -> None) *)
+    (*    | None -> None) in *)
+    (* if Interval.mem 0 i then *)
+    (*   (match eval vars SAT tp f2 with *)
+    (*    | Some expl2 -> *)
+    (*       (\* Found beta satisfaction within the interval *\) *)
+    (*       let ssince_expl = Pdt.apply1_reduce Proof.equal vars *)
+    (*                           (fun sp2 -> Proof.S (SSince (Proof.unS sp2, Fdeque.empty))) expl2 in *)
+    (*       Some (List.fold alphas_sat ~init:ssince_expl ~f:(fun expl alpha_sat -> *)
+    (*                 Pdt.apply2_reduce Proof.equal vars *)
+    (*                   (fun sp sp1 -> Proof.s_append sp sp1) *)
+    (*                   expl alpha_sat)) *)
+    (*    | None -> continue_alphas_sat i f1 f2 tp alphas_sat) *)
+    (* else continue_alphas_sat i f1 f2 tp alphas_sat *)
+  and since_vio vars i f1 f2 cur_tp tp betas_vio = Pdt.Leaf None
     (* let continue_betas_vio i f1 f2 tp betas_vio = *)
     (*   (match eval vars VIO tp f2 with *)
     (*    | Some expl2 -> *)
@@ -266,28 +291,24 @@ let explain trace v pol tp f =
     (*        | None -> None) *)
     (*    | None -> None) in *)
     (* The interval has not started yet *)
-    if not (Interval.mem 0 i) && Int.equal tp 0 then
-      Some (Pdt.Leaf (Proof.V (VSinceOut cur_tp)))
-    else
-      (if Interval.mem 0 i then
-         (match eval vars VIO tp f1 with
-          | Some expl1 ->
-             (* Found alpha violation within the interval *)
-             let vsince_expl = Pdt.apply1_reduce Proof.equal vars
-                                 (fun vp1 -> Proof.V (VSince (cur_tp, Proof.unV vp1, Fdeque.empty))) expl1 in
-             Some (List.fold betas_vio ~init:vsince_expl ~f:(fun expl beta_vio ->
-                       Pdt.apply2_reduce Proof.equal vars
-                         (fun vp vp2 -> Proof.v_append vp vp2)
-                         expl beta_vio))
-          | None ->
-             (* Continue collecting beta violations *)
-             let x = () in None)
-       else None)
-  and until_sat i f1 f2 tp =
-    if Interval.mem 0 i then
-      None
-    else
-      None in
+    (* if not (Interval.mem 0 i) && Int.equal tp 0 then *)
+    (*   Some (Pdt.Leaf (Proof.V (VSinceOut cur_tp))) *)
+    (* else *)
+    (*   (if Interval.mem 0 i then *)
+    (*      (match eval vars VIO tp f1 with *)
+    (*       | Some expl1 -> *)
+    (*          (\* Found alpha violation within the interval *\) *)
+    (*          let vsince_expl = Pdt.apply1_reduce Proof.equal vars *)
+    (*                              (fun vp1 -> Proof.V (VSince (cur_tp, Proof.unV vp1, Fdeque.empty))) expl1 in *)
+    (*          Some (List.fold betas_vio ~init:vsince_expl ~f:(fun expl beta_vio -> *)
+    (*                    Pdt.apply2_reduce Proof.equal vars *)
+    (*                      (fun vp vp2 -> Proof.v_append vp vp2) *)
+    (*                      expl beta_vio)) *)
+    (*       | None -> *)
+    (*          (\* Continue collecting beta violations *\) *)
+    (*          let x = () in None) *)
+    (*    else None) *)
+  and until_sat i f1 f2 tp = Pdt.Leaf None in
   eval [] pol tp f
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
