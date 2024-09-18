@@ -145,26 +145,21 @@ let explain trace v pol tp f =
              | SAT -> None
              | VIO -> Some (Pdt.Leaf (Expl.Proof.V (VFF tp))))
     | EqConst (x, d) ->
-       let d'_opt = Map.find v x in
        let l1 = Pdt.Leaf (Proof.S (SEqConst (tp, x, d))) in
        let l2 = Pdt.Leaf (Proof.V (VEqConst (tp, x, d))) in
-       (match pol, d'_opt with
-        | SAT, Some d' when Dom.equal d d' ->
+       (match pol, Map.find v x with
+        | SAT, Some d' when Dom.equal d d' -> Some l1
+        | VIO, Some d' when not (Dom.equal d d') -> Some l2
+        | SAT, None ->
            Some (Pdt.Node (x, Part.of_list [(Setc.Complement (Set.of_list (module Dom) [d]), l2);
                                             (Setc.Finite (Set.of_list (module Dom) [d]), l1)]))
-        | VIO, Some d' when not (Dom.equal d d') ->
+        | VIO, None ->
            Some (Pdt.Node (x, Part.of_list [(Setc.Complement (Set.of_list (module Dom) [d]), l1);
-                                            (Setc.Finite (Set.of_list (module Dom) [d]), l2)]))
-        | _ -> None)
+                                            (Setc.Finite (Set.of_list (module Dom) [d]), l2)])))
     | Predicate (r, trms) ->
-       if List.is_empty trms then
-         let db = Set.filter (snd (Array.get trace tp)) ~f:(fun evt -> String.equal r (fst(evt))) in
-         if Set.is_empty db then Some (Pdt.Leaf (Proof.V (VPred (tp, r, trms))))
-         else Some(Pdt.Leaf (S (SPred (tp, r, trms))))
-       else
-         let pred_fvs = Set.elements (Formula.fv (Predicate (r, trms))) in
-         let pred_fvs_vars = List.filter vars ~f:(fun var -> List.mem pred_fvs var ~equal:String.equal) in
-         Pdt.prune_nones (pdt_of tp r trms pred_fvs_vars (Some v) pol)
+       let pred_fvs = Set.elements (Formula.fv (Predicate (r, trms))) in
+       let pred_fvs_vars = List.filter vars ~f:(fun var -> List.mem pred_fvs var ~equal:String.equal) in
+       Pdt.prune_nones (pdt_of tp r trms pred_fvs_vars (Some v) pol)
     | Neg f -> (match eval vars pol tp f with
                 | None -> None
                 | Some expl -> Pdt.prune_nones (Pdt.apply1_reduce Proof.equal_opt vars (fun p -> do_neg p pol) expl))
@@ -265,7 +260,7 @@ let explain trace v pol tp f =
       None
     else
       None in
-  eval (Set.elements (Formula.fv f)) pol tp f
+  eval [] pol tp f
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
 let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol =
