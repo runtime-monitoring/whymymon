@@ -103,22 +103,37 @@ let print_maps maps =
   List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
                                     Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))
 
-let rec pdt_of tp r trms (vars: string list) map_opt (pol: Polarity.t) : Proof.t option Pdt.t = match vars with
-  | [] -> (match pol with
-           | SAT when Option.is_some map_opt -> Leaf (Some (S (SPred (tp, r, trms))))
-           | VIO when Option.is_none map_opt -> Leaf (Some (V (VPred (tp, r, trms))))
-           | _ -> Leaf None)
+let rec match_terms trms ds map =
+  match trms, ds with
+  | [], [] -> Some(map)
+  | Term.Const c :: trms, d :: ds -> if Dom.equal c d then match_terms trms ds map else None
+  | Var x :: trms, d :: ds -> (match match_terms trms ds map with
+                               | None -> None
+                               | Some(map') -> (match Map.find map' x with
+                                                | None -> let map'' = Map.add_exn map' ~key:x ~data:d in Some(map'')
+                                                | Some z -> (if Dom.equal d z then Some map' else None)))
+  | _, _ -> None
+
+let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
+  | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
+          else Leaf (S (SPred (tp, r, trms)))
   | x :: vars ->
-     let map = Option.value_exn map_opt in
-     let d = match Map.find map x with
-       | None -> raise (Invalid_argument (Printf.sprintf "could not find value of %s in map" x))
-       | Some(d) -> d in
-     let part = Part.tabulate_dedup (Pdt.equal Proof.equal_opt) (Set.of_list (module Dom) [d])
-                  (fun d -> pdt_of tp r trms vars map_opt pol)
-                  (pdt_of tp r trms vars None (Polarity.invert pol)) in
+     let ds = List.fold maps ~init:[]
+                ~f:(fun acc map -> match Map.find map x with
+                                   | None -> acc
+                                   | Some(d) -> d :: acc) in
+     let find_maps d = List.fold maps ~init:[]
+                         ~f:(fun acc map -> match Map.find map x with
+                                            | None -> acc
+                                            | Some(d') -> if Dom.equal d d' then
+                                                            map :: acc
+                                                          else acc) in
+     let part = Part.tabulate_dedup (Pdt.equal Proof.equal) (Set.of_list (module Dom) ds)
+                  (fun d -> pdt_of tp r trms vars (find_maps d)) (pdt_of tp r trms vars []) in
      Node (x, part)
 
 let h_tp_ts = Hashtbl.create (module Int)
+
 
 module State = struct
 
@@ -128,6 +143,7 @@ module State = struct
            ; expl: Expl.t }
 
 end
+
 
 let explain trace v pol tp f =
   let result vars expl1_opt expl2_opt do_op pol = match expl1_opt, expl2_opt with
@@ -157,9 +173,21 @@ let explain trace v pol tp f =
            Some (Pdt.Node (x, Part.of_list [(Setc.Complement (Set.of_list (module Dom) [d]), l1);
                                             (Setc.Finite (Set.of_list (module Dom) [d]), l2)])))
     | Predicate (r, trms) ->
+       (* Replace trms with values coming from variable assignment v *)
+       let trms = List.map trms ~f:(fun trm -> if Pred.Term.is_var trm then
+                                                 (match Map.find v (Pred.Term.unvar trm) with
+                                                  | None -> trm
+                                                  | Some d -> Const d)
+                                               else trm) in
+       let db = Set.filter (snd (Array.get trace tp)) ~f:(fun evt -> String.equal r (fst(evt))) in
+       let maps = Set.fold db ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt)
+                                                            (Map.empty (module String)) :: acc) in
+       let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
+                                                                 | None -> false
+                                                                 | Some(map) -> not (Map.is_empty map)))
+                     ~f:(fun map_opt -> Option.value_exn map_opt) in
        let pred_fvs = Set.elements (Formula.fv (Predicate (r, trms))) in
-       let pred_fvs_vars = List.filter vars ~f:(fun var -> List.mem pred_fvs var ~equal:String.equal) in
-       Pdt.prune_nones (pdt_of tp r trms pred_fvs_vars (Some v) pol)
+       Some (pdt_of tp r trms pred_fvs maps')
     | Neg f -> (match eval vars pol tp f with
                 | None -> None
                 | Some expl -> Pdt.prune_nones (Pdt.apply1_reduce Proof.equal_opt vars (fun p -> do_neg p pol) expl))

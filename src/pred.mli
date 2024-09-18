@@ -20,6 +20,10 @@ module Term : sig
 
   val unconst: t -> Dom.t
 
+  val is_var: t -> bool
+
+  val is_const: t -> bool
+
   val comparator: (t, comparator_witness) Comparator.t
 
   val fv_list: t list -> string list
