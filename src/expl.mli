@@ -101,7 +101,7 @@ module Proof : sig
   val s_equal: sp -> sp -> bool
   val v_equal: vp -> vp -> bool
   val equal: t -> t -> bool
-  val equal_opt: t option -> t option -> bool
+  val opt_equal: t option -> t option -> bool
 
   val unS: t -> sp
   val unV: t -> vp
@@ -158,7 +158,7 @@ module Pdt : sig
 
 end
 
-type t = Proof.t Pdt.t
+type t = Proof.t option Pdt.t
 
 val equal: t -> t -> bool
 val is_violated: t -> bool

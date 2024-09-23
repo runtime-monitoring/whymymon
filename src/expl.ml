@@ -47,6 +47,8 @@ module Part = struct
 
   let for_all part f = List.for_all part ~f:(fun (_, p) -> f p)
 
+  let find_map part f = List.find_map part ~f:(fun (_, p) -> f p)
+
   let values part = List.map part ~f:(fun (_, p) -> p)
 
   let of_list l =
@@ -301,7 +303,7 @@ module Proof = struct
     | V vp, V vp' -> v_equal vp vp'
     | _ -> false
 
-  let equal_opt x y = match x, y with
+  let opt_equal x y = match x, y with
     | None, None -> true
     | Some _, None -> false
     | None, Some _ -> false
@@ -407,8 +409,12 @@ module Proof = struct
     | VUntilInf (tp, _, _) -> tp
 
   let p_at = function
-    | S s_p -> s_at s_p
-    | V v_p -> v_at v_p
+    | S sp -> s_at sp
+    | V vp -> v_at vp
+
+  let opt_p_at = function
+    | None -> None
+    | Some p -> Some (p_at p)
 
   let s_ltp = function
     | SUntil (sp2, _) -> s_at sp2
@@ -500,8 +506,12 @@ module Proof = struct
                                   (Etc.deque_to_string indent' v_to_string vp2s)
 
   let to_string indent = function
-    | S p -> s_to_string indent p
-    | V p -> v_to_string indent p
+    | S sp -> s_to_string indent sp
+    | V vp -> v_to_string indent vp
+
+  let opt_to_string indent = function
+    | None -> "none"
+    | Some p -> to_string indent p
 
   let val_changes_to_latex v =
     if List.is_empty v then "v"
@@ -709,12 +719,20 @@ module Proof = struct
     | _ -> ""
 
   let to_latex indent fmla = function
-    | S p -> s_to_latex indent [] 0 p fmla
-    | V p -> v_to_latex indent [] 0 p fmla
+    | S sp -> s_to_latex indent [] 0 sp fmla
+    | V vp -> v_to_latex indent [] 0 vp fmla
+
+  let opt_to_latex indent fmla = function
+    | None -> "None"
+    | Some p -> to_latex indent fmla p
 
   let to_light indent = function
     | S _ -> "true\n"
     | V vp -> v_to_string indent vp
+
+  let opt_to_light indent = function
+    | None -> "none"
+    | Some p -> to_light indent p
 
   module Size = struct
 
@@ -969,29 +987,31 @@ module Pdt = struct
 
 end
 
-type t = Proof.t Pdt.t
+type t = Proof.t option Pdt.t
 
 let rec equal expl expl' = match expl, expl' with
-  | Pdt.Leaf l, Pdt.Leaf l' -> Proof.equal l l'
+  | Pdt.Leaf l, Pdt.Leaf l' -> Proof.opt_equal l l'
   | Node (x, part), Node (x', part') -> String.equal x x' && Part.equal part part' equal
   | _ -> false
 
 let rec is_violated = function
   | Pdt.Leaf l -> (match l with
-                   | Proof.S _ -> false
-                   | V _ -> true)
+                   | Some (Proof.V _) -> true
+                   | None -> false)
   | Node (x, part) -> Part.exists part is_violated
 
-let rec at = function
-  | Pdt.Leaf pt -> Proof.p_at pt
-  | Node (_, part) -> at (Part.hd part)
+let at expl =
+  let rec at_rec = function
+    | Pdt.Leaf pt -> Proof.opt_p_at pt
+    | Node (_, part) -> Part.find_map part (fun expl -> at_rec expl) in
+  Option.value_exn (at_rec  expl)
 
 let rec sort_parts = function
   | Pdt.Leaf pt -> Pdt.Leaf pt
   | Node (x, part) -> Node (x, Part.map (Part.sort part) sort_parts)
 
-let to_string expl = Pdt.to_string Proof.to_string "" expl
+let to_string expl = Pdt.to_string Proof.opt_to_string "" expl
 
-let to_latex fmla expl = Pdt.to_latex (Proof.to_latex "" fmla) "" expl
+let to_latex fmla expl = Pdt.to_latex (Proof.opt_to_latex "" fmla) "" expl
 
-let to_light_string expl = Pdt.to_light_string (Proof.to_light "") "" expl
+let to_light_string expl = Pdt.to_light_string (Proof.opt_to_light "") "" expl
