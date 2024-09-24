@@ -45,6 +45,10 @@ module Part = struct
 
   let exists part f = List.exists part ~f:(fun (_, p) -> f p)
 
+  let exists_some part f = List.exists part ~f:(fun (_, p) -> f p && Option.is_some p)
+
+  let unsomes part = List.map part ~f:(fun (s, p) -> (s, Option.value_exn p))
+
   let for_all part f = List.for_all part ~f:(fun (_, p) -> f p)
 
   let find_map part f = List.find_map part ~f:(fun (_, p) -> f p)
@@ -316,6 +320,14 @@ module Proof = struct
   let unV = function
     | V vp -> vp
     | _ -> raise (Invalid_argument "unV is not defined for S proofs")
+
+  let opt_unS = function
+    | Some (S sp) -> sp
+    | _ -> raise (Invalid_argument "opt_unS is not defined for None or V proofs")
+
+  let opt_unV = function
+    | Some (V vp) -> vp
+    | _ -> raise (Invalid_argument "opt_unV is not defined for None or S proofs")
 
   let isS = function
     | S _ -> true
@@ -803,6 +815,9 @@ module Proof = struct
     let minp_list = function
       | [] -> None
       | x :: xs -> Some (List.fold_left xs ~init:x ~f:minp)
+
+    let minp_list_somes ps =
+      minp_list (List.map ps ~f:(fun p -> Option.value_exn p))
 
   end
 

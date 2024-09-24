@@ -13,21 +13,26 @@ open Checker_interface
 
 module Plain : sig
 
-  val expls: ((timestamp * timepoint) * Expl.t) list ->
-             (bool * Checker_pdt.t * Checker_trace.t) list option ->
-             ((Dom.t, Dom.comparator_witness) Setc.t list list option list) option ->
-             Formula.t option -> Argument.Mode.t -> unit
+  type t =
+    | Explanation of (timestamp * timepoint) * Expl.t
+    | ExplanationCheck of (timestamp * timepoint) * Expl.t * bool
+    | ExplanationLatex of (timestamp * timepoint) * Expl.t * Formula.t
+    | ExplanationLight of (timestamp * timepoint) * Expl.t
+    | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_pdt.t * Checker_trace.t
+                               * (Dom.t, Dom.comparator_witness) Setc.t list list option
+
+  val print: t -> unit
 
 end
 
-module Json : sig
+(* module Json : sig *)
 
-  val table_columns: Formula.t -> string
+(*   val table_columns: Formula.t -> string *)
 
-  val db: timestamp -> timepoint -> Db.t -> Formula.t -> string
+(*   val db: timestamp -> timepoint -> Db.t -> Formula.t -> string *)
 
-  val expls: (timepoint, timestamp) Hashtbl.t -> Formula.t -> Expl.t list -> string list
+(*   val expls: (timepoint, timestamp) Hashtbl.t -> Formula.t -> Expl.t list -> string list *)
 
-  val aggregate: string list -> string list -> string -> string
+(*   val aggregate: string list -> string list -> string -> string *)
 
-end
+(* end *)

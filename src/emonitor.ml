@@ -10,13 +10,13 @@
 open Base
 
 (* TODO: Rewrite this using functors/first-class modules to distinguish monitors (or maybe not) *)
-let to_assignments (mon: Argument.Monitor.t) vars line =
+let to_ts_assignments (mon: Argument.Monitor.t) vars line =
   match mon with
   | MonPoly -> let (tp, sss) = Emonitor_parser.Monpoly.parse line in
-               List.map sss ~f:(fun ss ->
-                   List.fold2_exn vars ss ~init:(Assignment.init ())
-                     ~f:(fun v x s -> let d = Dom.string_to_t s (Pred.Sig.var_tt x) in
-                                      Assignment.add v x d))
+               (tp, List.map sss ~f:(fun ss ->
+                        List.fold2_exn vars ss ~init:(Assignment.init ())
+                          ~f:(fun v x s -> let d = Dom.string_to_t s (Pred.Sig.var_tt x) in
+                                           Assignment.add v x d)))
   | VeriMon -> failwith "missing"
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"

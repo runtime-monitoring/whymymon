@@ -15,6 +15,6 @@ end
 
 module Expl : sig
 
-  val to_json: Formula.t -> Expl.t -> string
+  (* val to_json: Formula.t -> Expl.t -> string *)
 
 end

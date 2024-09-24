@@ -28,6 +28,8 @@ module Part : sig
   val fold_map_list: 'a t -> 'b -> ('b -> sub * 'a -> 'b * 'd) -> 'b * 'd list
   val filter: 'a t -> ('a -> bool) -> 'a t
   val exists: 'a t -> ('a -> bool) -> bool
+  val exists_some: 'a option t -> ('a option -> bool) -> bool
+  val unsomes: 'a option t -> 'a t
   val for_all: 'a t -> ('a -> bool) -> bool
   val values: 'a t -> 'a list
   val of_list: ((Dom.t, Dom.comparator_witness) Setc.t * 'a) list -> 'a t
@@ -105,6 +107,8 @@ module Proof : sig
 
   val unS: t -> sp
   val unV: t -> vp
+  val opt_unS: t option -> sp
+  val opt_unV: t option -> vp
   val isS: t -> bool
   val isV: t -> bool
 
@@ -129,6 +133,7 @@ module Proof : sig
     val minp_bool: t -> t -> bool
     val minp: t -> t -> t
     val minp_list: t list -> t option
+    val minp_list_somes: t option list -> t option
 
   end
 

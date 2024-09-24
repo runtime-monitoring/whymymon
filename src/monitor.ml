@@ -87,15 +87,18 @@ let do_exists_leaf x tc p_opt =
   | None -> None
 
 let do_exists_node x tc part =
-  if Part.exists part Proof.isS then
-    (let sats = Part.filter part (fun p -> Proof.isS p) in
-     (Part.values (Part.map2_dedup Proof.equal sats (fun (s, p) ->
+  let isS p_opt = match p_opt with
+    | None -> false
+    | Some p -> Proof.isS p in
+  if Part.exists_some part isS then
+    (let sats = Part.filter part isS in
+     (Part.values (Part.map2_dedup Proof.opt_equal sats (fun (s, p) ->
                        match p with
-                       | S sp -> (let witness = Setc.some_elt tc s in
+                       | Some (S sp) -> (let witness = Setc.some_elt tc s in
                                   (Setc.Finite (Set.of_list (module Dom) [witness]),
-                                   Proof.S (Proof.SExists (x, Setc.some_elt tc s, sp))))
-                       | V vp -> raise (Invalid_argument "found V proof in S list")))))
-  else [V (Proof.VExists (x, Part.map_dedup Proof.v_equal part Proof.unV))]
+                                   Some (Proof.S (Proof.SExists (x, Setc.some_elt tc s, sp)))))
+                       | None -> raise (Invalid_argument "found None in Some partition")))))
+  else [Some (V (Proof.VExists (x, Part.map_dedup Proof.v_equal part Proof.opt_unV)))]
 
 let do_forall_leaf x tc = function
   | Proof.S sp -> [Proof.S (SForall (x, Part.trivial sp))]
@@ -129,8 +132,8 @@ let rec match_terms trms ds map =
                                                 | Some z -> (if Dom.equal d z then Some map' else None)))
   | _, _ -> None
 
-let rec pdt_of tp r trms (vars: string list) maps : Expl.t = match vars with
-  | [] -> if List.is_empty maps then Leaf (V (VPred (tp, r, trms)))
+let rec pdt_of tp r trms (vars: string list) maps = match vars with
+  | [] -> if List.is_empty maps then Pdt.Leaf (Proof.V (VPred (tp, r, trms)))
           else Leaf (S (SPred (tp, r, trms)))
   | x :: vars ->
      let ds = List.fold maps ~init:[]
@@ -200,36 +203,37 @@ let explain trace v pol tp f =
        Pdt.add_somes (pdt_of tp r trms pred_fvs maps')
     | Neg f ->
        let expl = eval vars pol tp f in
-       Pdt.apply1_reduce Proof.equal_opt vars (fun p_opt -> do_neg p_opt pol) expl
+       Pdt.apply1_reduce Proof.opt_equal vars
+         (fun p_opt -> do_neg p_opt pol) expl
     | And (f1, f2) ->
        let expl1 = eval vars pol tp f1 in
        let expl2 = eval vars pol tp f2 in
-       Pdt.apply2_reduce Proof.equal_opt vars
+       Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_and p1_opt p2_opt pol)) expl1 expl2
     | Or (f1, f2) ->
        let expl1 = eval vars pol tp f1 in
        let expl2 = eval vars pol tp f2 in
-       Pdt.apply2_reduce Proof.equal_opt vars
+       Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_or p1_opt p2_opt pol)) expl1 expl2
     | Imp (f1, f2) ->
        let expl1 = eval vars pol tp f1 in
        let expl2 = eval vars pol tp f2 in
-       Pdt.apply2_reduce Proof.equal_opt vars
+       Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_imp p1_opt p2_opt pol)) expl1 expl2
     | Iff (f1, f2) ->
        let expl1 = eval vars pol tp f1 in
        let expl2 = eval vars pol tp f2 in
-       Pdt.apply2_reduce Proof.equal_opt vars
+       Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_iff p1_opt p2_opt pol)) expl1 expl2
-    | Exists (x, tc, f) -> Pdt.Leaf None
-       (* let expl = eval vars pol tp f in *)
-       (* Pdt.hide_reduce Proof.equal_opt (vars @ [x]) *)
-       (*   (fun p_opt -> do_exists_leaf x tc p_opt) *)
-       (*   (fun part -> Proof.Size.minp_list (do_exists_node x tc part)) expl *)
+    | Exists (x, tc, f) ->
+       let expl = eval vars pol tp f in
+       Pdt.hide_reduce Proof.opt_equal (vars @ [x])
+         (fun p_opt -> do_exists_leaf x tc p_opt)
+         (fun part -> Proof.Size.minp_list_somes (do_exists_node x tc part)) expl
     | Forall (x, tc, f) -> Pdt.Leaf None
        (* (match eval vars pol tp f with *)
        (*  | None -> None *)
-       (*  | Some expl -> Pdt.prune_nones (Pdt.hide_reduce Proof.equal_opt (vars @ [x]) *)
+       (*  | Some expl -> Pdt.prune_nones (Pdt.hide_reduce Proof.opt_equal (vars @ [x]) *)
        (*                                    (fun p -> Proof.Size.minp_list (do_forall_leaf x tc p)) *)
        (*                                    (fun p -> Proof.Size.minp_list (do_forall_node x tc p)) expl)) *)
     | Prev (i, f) -> (match pol with
@@ -312,7 +316,7 @@ let explain trace v pol tp f =
   eval [] pol tp f
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
-let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol =
+let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
   let vars = Set.elements (Formula.fv f) in
   let buf = Eio.Buf_read.of_flow r_source ~initial_size:100 ~max_size:1_000_000 in
   let stop = ref false in
@@ -321,17 +325,20 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol =
     traceln "Read emonitor line: %s" line;
     (* traceln "Trace size: %d" (Fdeque.length !trace); *)
     if String.equal line "Stop" then raise Exit;
-    let assignments = Emonitor.to_assignments mon vars line in
+    let (ts, assignments) = Emonitor.to_ts_assignments mon vars line in
     traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
     let tp = Array.length trace - 1 in
     List.iter assignments ~f:(fun v ->
-        match explain trace v pol tp f with
-        | Some (expl) ->
-           (let (b, _, _) = List.hd_exn (Checker_interface.check (Array.to_list trace) f [expl]) in
-            let paths = Checker_interface.false_paths (Array.to_list trace) f [expl] in
-            Stdio.printf "%d:%d\nExplanation: \n\n%s\n" (fst (Array.get trace tp)) tp (Expl.to_string expl);
-            Stdio.printf "\nChecker output: %B\n\n" b)
-        | _ -> ());
+        let expl = explain trace v pol tp f in
+        match mode with
+        | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
+        (* | Verified -> let (b, _, _) = List.hd_exn (Checker_interface.check (Array.to_list trace) f [expl]) in *)
+        (*               Out.Plain.print (ExplanationCheck ((ts, tp), expl, b)) *)
+        | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
+        (* | Debug -> let (b, c_e, c_trace) = List.hd_exn (Checker_interface.check (Array.to_list trace) f [expl]) in *)
+        (*            let paths = List.hd_exn (Checker_interface.false_paths (Array.to_list c_trace) f [expl]) in *)
+        (*            Out.Plain.print (ExplanationCheckDebug ((ts, tp), expl, b, c_e, c_trace, paths)) *)
+        | DebugVis -> ());
     if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
     Fiber.yield ()
   done
@@ -388,7 +395,7 @@ let exec mon ~mon_path ?sig_path stream f pref mode extra_args =
             (fun () -> traceln "Writing lines to emonitor's stdin...";
                        write_lines mon stream w_sink end_of_stream trace);
             (fun () -> traceln "Reading lines from emonitor's stdout...";
-                       read ~domain_mgr r_source r_sink end_of_stream mon f !trace (Polarity.of_pref pref))
+                       read ~domain_mgr r_source r_sink end_of_stream mon f !trace (Polarity.of_pref pref) mode)
           ];
       with Exit -> Stdio.printf "Reached the end of the log file.\n"
     );

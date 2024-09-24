@@ -368,7 +368,7 @@ module Expl = struct
        ((cell, []) :: row, idx)
     | _ -> raise (Invalid_argument "invalid formula/proof pair")
 
-  let rec expl_cell row idx (f: Formula.t) (expl: Expl.t) : cell_expl = match expl with
+  let rec expl_cell row idx (f: Formula.t) expl : cell_expl = match expl with
     | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row row idx f pt)))
     | Node (x, part) -> Expl (x, Expl.Part.map2_list (Expl.Part.rev part) (fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
 
@@ -443,7 +443,7 @@ module Expl = struct
                              Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
                  (Printf.sprintf "]\n")
 
-let to_json (f: Formula.t) (expl: Expl.t) =
+let to_json (f: Formula.t) expl =
   let c_e = expl_cell [] 0 f expl in
   e_cell_to_json (String.make 8 ' ') c_e
 

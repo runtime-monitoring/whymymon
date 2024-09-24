@@ -1,5 +1,5 @@
 (*******************************************************************)
-(*     This is part of WhyMon, and it is distributed under the     *)
+(*    This is part of WhyMyMon, and it is distributed under the    *)
 (*     terms of the GNU Lesser General Public License version 3    *)
 (*           (see file LICENSE for more details)                   *)
 (*                                                                 *)
@@ -21,9 +21,8 @@ module Plain = struct
     | ExplanationLight of (timestamp * timepoint) * Expl.t
     | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_pdt.t * Checker_trace.t
                                * (Dom.t, Dom.comparator_witness) Setc.t list list option
-    | Info of string
 
-  let expl = function
+  let print = function
     | Explanation ((ts, tp), e) ->
        Stdio.printf "%d:%d\nExplanation: \n\n%s\n\n" ts tp (Expl.to_string e)
     | ExplanationCheck ((ts, tp), e, b) ->
@@ -42,75 +41,60 @@ module Plain = struct
         | None -> ()
         | Some(l1) -> Stdio.printf "\n[debug] Checker false path: %s\n"
                         (Etc.list_to_string "" (fun _ l2 -> Etc.list_to_string ""
-                                                              (fun _ s -> Setc.to_string s) l2) l1)
-       );
-    | Info s -> Stdio.printf "\nInfo: %s\n\n" s
-
-  let expls tstp_expls checker_es_opt paths_opt f_opt = function
-    | Argument.Mode.Unverified -> List.iter tstp_expls ~f:(fun ((ts, tp), e) ->
-                                      expl (Explanation ((ts, tp), e)))
-    | Verified -> List.iter2_exn tstp_expls (Option.value_exn checker_es_opt)
-                    ~f:(fun ((ts, tp), e) (b, _, _) -> expl (ExplanationCheck ((ts, tp), e, b)))
-    | LaTeX -> List.iter tstp_expls ~f:(fun ((ts, tp), e) ->
-                   expl (ExplanationLatex ((ts, tp), e, Option.value_exn f_opt)))
-    | Debug -> List.iter2_exn (List.zip_exn tstp_expls (Option.value_exn checker_es_opt))
-                 (Option.value_exn paths_opt)
-                 ~f:(fun (((ts, tp), e), (b, checker_e, trace)) path_opt ->
-                   expl (ExplanationCheckDebug ((ts, tp), e, b, checker_e, trace, path_opt)))
-    | DebugVis -> raise (Failure "this function is undefined for the mode DebugVis")
+                                                              (fun _ s -> Setc.to_string s) l2) l1))
 
 end
 
-module Json = struct
+(* module Json = struct *)
 
-  let error err =
-    Printf.sprintf "ERROR: %s" (Error.to_string_hum err)
+(*   let error err = *)
+(*     Printf.sprintf "ERROR: %s" (Error.to_string_hum err) *)
 
-  let table_columns f =
-    let sig_preds_columns = List.rev (Set.fold (Formula.pred_names f) ~init:[] ~f:(fun acc r ->
-                                          let r_props = Hashtbl.find_exn Pred.Sig.table r in
-                                          let var_names = fst (List.unzip r_props.ntconsts) in
-                                          (Printf.sprintf "%s(%s)" r
-                                             (Etc.string_list_to_string ~sep:", " var_names)) :: acc)) in
-    let subfs_columns = List.map (Formula.subfs_dfs f) ~f:Formula.op_to_string in
-    let subfs_scope = List.map (Formula.subfs_scope f 0) ~f:(fun (i, (js, ks)) ->
-                          Printf.sprintf "{\"col\": %d, \"leftCols\": %s, \"rightCols\": %s}"
-                            i (Etc.int_list_to_json js) (Etc.int_list_to_json ks)) in
-    let subfs = List.map (Formula.subfs_dfs f) ~f:(Formula.to_string true) in
-    Printf.sprintf "{\n  \"predsColumns\": %s,\n
-                    \"subfsColumns\": %s,\n
-                    \"subfsScopes\": [%s],\n
-                    \"subformulas\": %s }\n"
-      (Etc.string_list_to_json sig_preds_columns) (Etc.string_list_to_json subfs_columns)
-      (Etc.string_list_to_string ~sep:", " subfs_scope) (Etc.string_list_to_json subfs)
+(*   let table_columns f = *)
+(*     let sig_preds_columns = List.rev (Set.fold (Formula.pred_names f) ~init:[] ~f:(fun acc r -> *)
+(*                                           let r_props = Hashtbl.find_exn Pred.Sig.table r in *)
+(*                                           let var_names = fst (List.unzip r_props.ntconsts) in *)
+(*                                           (Printf.sprintf "%s(%s)" r *)
+(*                                              (Etc.string_list_to_string ~sep:", " var_names)) :: acc)) in *)
+(*     let subfs_columns = List.map (Formula.subfs_dfs f) ~f:Formula.op_to_string in *)
+(*     let subfs_scope = List.map (Formula.subfs_scope f 0) ~f:(fun (i, (js, ks)) -> *)
+(*                           Printf.sprintf "{\"col\": %d, \"leftCols\": %s, \"rightCols\": %s}" *)
+(*                             i (Etc.int_list_to_json js) (Etc.int_list_to_json ks)) in *)
+(*     let subfs = List.map (Formula.subfs_dfs f) ~f:(Formula.to_string true) in *)
+(*     Printf.sprintf "{\n  \"predsColumns\": %s,\n *)
+(*                     \"subfsColumns\": %s,\n *)
+(*                     \"subfsScopes\": [%s],\n *)
+(*                     \"subformulas\": %s }\n" *)
+(*       (Etc.string_list_to_json sig_preds_columns) (Etc.string_list_to_json subfs_columns) *)
+(*       (Etc.string_list_to_string ~sep:", " subfs_scope) (Etc.string_list_to_json subfs) *)
 
-  let db ts tp db f =
-    Printf.sprintf "%s{\n" (String.make 4 ' ') ^
-      Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
-        Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
-          Printf.sprintf "%s\n" (Vis.Dbs.to_json tp db f) ^
-            Printf.sprintf "%s}" (String.make 4 ' ')
+(*   let db ts tp db f = *)
+(*     Printf.sprintf "%s{\n" (String.make 4 ' ') ^ *)
+(*       Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^ *)
+(*         Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^ *)
+(*           Printf.sprintf "%s\n" (Vis.Dbs.to_json tp db f) ^ *)
+(*             Printf.sprintf "%s}" (String.make 4 ' ') *)
 
-  let expls tpts f es =
-    List.map es ~f:(fun e ->
-        let tp = (Expl.at e) in
-        let ts = Hashtbl.find_exn tpts tp in
-        Printf.sprintf "%s{\n" (String.make 4 ' ') ^
-          Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
-            Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
-              Printf.sprintf "%s\"expl\": {\n" (String.make 8 ' ') ^
-                Printf.sprintf "%s\n" (Vis.Expl.to_json f (Expl.sort_parts e)) ^
-                  Printf.sprintf "}%s}" (String.make 4 ' '))
+(*   let expls tpts f es = *)
+(*     List.map es ~f:(fun e -> *)
+(*         let tp = (Expl.at e) in *)
+(*         let ts = Hashtbl.find_exn tpts tp in *)
+(*         Printf.sprintf "%s{\n" (String.make 4 ' ') ^ *)
+(*           Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^ *)
+(*             Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^ *)
+(*               Printf.sprintf "%s\"expl\": {\n" (String.make 8 ' ') ^ *)
+(*                 Printf.sprintf "%s\n" (Vis.Expl.to_json f (Expl.sort_parts e)) ^ *)
+(*                   Printf.sprintf "}%s}" (String.make 4 ' ')) *)
 
-  let aggregate dbs expls errors =
-    Printf.sprintf "{\n" ^
-      Printf.sprintf "%s\"dbs_objs\": [\n" (String.make 4 ' ') ^
-        String.concat ~sep:",\n" dbs ^
-          Printf.sprintf "],\n" ^
-            Printf.sprintf "%s\"expls_objs\": [\n" (String.make 4 ' ') ^
-              String.concat ~sep:",\n" expls ^
-                Printf.sprintf "],\n" ^
-                  Printf.sprintf "%s\"errors\": %s\n" (String.make 4 ' ') errors ^
-                    Printf.sprintf "}"
+(*   let aggregate dbs expls errors = *)
+(*     Printf.sprintf "{\n" ^ *)
+(*       Printf.sprintf "%s\"dbs_objs\": [\n" (String.make 4 ' ') ^ *)
+(*         String.concat ~sep:",\n" dbs ^ *)
+(*           Printf.sprintf "],\n" ^ *)
+(*             Printf.sprintf "%s\"expls_objs\": [\n" (String.make 4 ' ') ^ *)
+(*               String.concat ~sep:",\n" expls ^ *)
+(*                 Printf.sprintf "],\n" ^ *)
+(*                   Printf.sprintf "%s\"errors\": %s\n" (String.make 4 ' ') errors ^ *)
+(*                     Printf.sprintf "}" *)
 
-end
+(* end *)
