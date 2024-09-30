@@ -45,8 +45,6 @@ module Part = struct
 
   let exists part f = List.exists part ~f:(fun (_, p) -> f p)
 
-  let exists_some part f = List.exists part ~f:(fun (_, p) -> f p && Option.is_some p)
-
   let unsomes part = List.map part ~f:(fun (s, p) -> (s, Option.value_exn p))
 
   let for_all part f = List.for_all part ~f:(fun (_, p) -> f p)
@@ -336,6 +334,14 @@ module Proof = struct
   let isV = function
     | S _ -> false
     | V _ -> true
+
+  let opt_isS = function
+    | None -> false
+    | Some p -> isS p
+
+  let opt_isV = function
+    | None -> false
+    | Some p -> isV p
 
   let s_append sp sp1 = match (unS sp) with
     | SSince (sp2, sp1s) -> S (SSince (sp2, Fdeque.enqueue_back sp1s (unS sp1)))

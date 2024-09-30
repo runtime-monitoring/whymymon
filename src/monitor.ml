@@ -79,42 +79,42 @@ let do_iff (p1_opt: Proof.t option) (p2_opt: Proof.t option) (pol: Polarity.t) :
                          | V vp1, V vp2, SAT -> Some (S (SIffVV (vp1, vp2)))
                          | _ -> None)
 
-let do_exists_leaf x tc p_opt =
-  match p_opt with
+let do_exists_leaf x tc = function
   | Some p -> (match p with
                | Proof.S sp -> Some (Proof.S (SExists (x, Dom.tt_default tc, sp)))
                | V vp -> Some (V (VExists (x, Part.trivial vp))))
   | None -> None
 
 let do_exists_node x tc part =
-  let isS p_opt = match p_opt with
-    | None -> false
-    | Some p -> Proof.isS p in
-  if Part.exists_some part isS then
-    (let sats = Part.filter part isS in
+  if Part.exists part Proof.opt_isS then
+    (let sats = Part.filter part Proof.opt_isS in
      (Part.values (Part.map2_dedup Proof.opt_equal sats (fun (s, p) ->
                        match p with
                        | Some (S sp) -> (let witness = Setc.some_elt tc s in
                                   (Setc.Finite (Set.of_list (module Dom) [witness]),
                                    Some (Proof.S (Proof.SExists (x, Setc.some_elt tc s, sp)))))
+                       | Some (V vp) -> raise (Invalid_argument "found V proof in S partition")
                        | None -> raise (Invalid_argument "found None in Some partition")))))
   else [Some (V (Proof.VExists (x, Part.map_dedup Proof.v_equal part Proof.opt_unV)))]
 
 let do_forall_leaf x tc = function
-  | Proof.S sp -> [Proof.S (SForall (x, Part.trivial sp))]
-  | V vp -> [Proof.V (VForall (x, Dom.tt_default tc, vp))]
+  | Some p -> (match p with
+               | Proof.S sp -> Some (Proof.S (SForall (x, Part.trivial sp)))
+               | V vp -> Some (Proof.V (VForall (x, Dom.tt_default tc, vp))))
+  | None -> None
 
 let do_forall_node x tc part =
-  if Part.for_all part Proof.isS then
-    [Proof.S (SForall (x, Part.map part Proof.unS))]
+  if Part.for_all part Proof.opt_isS then
+    [Some (Proof.S (SForall (x, Part.map_dedup Proof.s_equal part Proof.opt_unS)))]
   else
-    (let vios = Part.filter part (fun p -> Proof.isV p) in
-     (Part.values (Part.map2_dedup Proof.equal vios (fun (s, p) ->
+    (let vios = Part.filter part (fun p -> Proof.opt_isV p) in
+     (Part.values (Part.map2_dedup Proof.opt_equal vios (fun (s, p) ->
                        match p with
-                       | S sp -> raise (Invalid_argument "found S proof in V list")
-                       | V vp -> (let witness = Setc.some_elt tc s in
-                                  (Setc.Finite (Set.of_list (module Dom) [witness]),
-                                   Proof.V (Proof.VForall (x, Setc.some_elt tc s, vp))))))))
+                       | Some (V vp) -> let witness = Setc.some_elt tc s in
+                                        (Setc.Finite (Set.of_list (module Dom) [witness]),
+                                         Some (Proof.V (Proof.VForall (x, Setc.some_elt tc s, vp))))
+                       | Some (S sp) -> raise (Invalid_argument "found S proof in V partition")
+                       | None -> raise (Invalid_argument "found None in Some partition")))))
 
 let print_maps maps =
   Stdio.print_endline "> Map:";
@@ -230,12 +230,11 @@ let explain trace v pol tp f =
        Pdt.hide_reduce Proof.opt_equal (vars @ [x])
          (fun p_opt -> do_exists_leaf x tc p_opt)
          (fun part -> Proof.Size.minp_list_somes (do_exists_node x tc part)) expl
-    | Forall (x, tc, f) -> Pdt.Leaf None
-       (* (match eval vars pol tp f with *)
-       (*  | None -> None *)
-       (*  | Some expl -> Pdt.prune_nones (Pdt.hide_reduce Proof.opt_equal (vars @ [x]) *)
-       (*                                    (fun p -> Proof.Size.minp_list (do_forall_leaf x tc p)) *)
-       (*                                    (fun p -> Proof.Size.minp_list (do_forall_node x tc p)) expl)) *)
+    | Forall (x, tc, f) ->
+       let expl = eval vars pol tp f in
+       Pdt.hide_reduce Proof.opt_equal (vars @ [x])
+         (fun p_opt -> do_forall_leaf x tc p_opt)
+         (fun part -> Proof.Size.minp_list_somes (do_forall_node x tc part)) expl
     | Prev (i, f) -> (match pol with
                       | SAT -> Pdt.Leaf None
                       | VIO -> Pdt.Leaf None)

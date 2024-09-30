@@ -28,7 +28,6 @@ module Part : sig
   val fold_map_list: 'a t -> 'b -> ('b -> sub * 'a -> 'b * 'd) -> 'b * 'd list
   val filter: 'a t -> ('a -> bool) -> 'a t
   val exists: 'a t -> ('a -> bool) -> bool
-  val exists_some: 'a option t -> ('a option -> bool) -> bool
   val unsomes: 'a option t -> 'a t
   val for_all: 'a t -> ('a -> bool) -> bool
   val values: 'a t -> 'a list
@@ -111,6 +110,8 @@ module Proof : sig
   val opt_unV: t option -> vp
   val isS: t -> bool
   val isV: t -> bool
+  val opt_isS: t option -> bool
+  val opt_isV: t option -> bool
 
   val s_append: t -> t -> t
   val v_append: t -> t -> t
