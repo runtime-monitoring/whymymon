@@ -189,20 +189,20 @@ let explain trace v pol tp f =
                                       (Setc.Finite (Set.of_list (module Dom) [d]), l2)]))
     | Predicate (r, trms) ->
        (* Replace trms with values coming from variable assignment v *)
-       let trms = List.map trms ~f:(fun trm -> if Pred.Term.is_var trm then
-                                                 (match Map.find v (Pred.Term.unvar trm) with
-                                                  | None -> trm
-                                                  | Some d -> Const d)
-                                               else trm) in
+       let trms_subst = List.map trms ~f:(fun trm -> if Pred.Term.is_var trm then
+                                                       (match Map.find v (Pred.Term.unvar trm) with
+                                                        | None -> trm
+                                                        | Some d -> Const d)
+                                                     else trm) in
        let db = Set.filter (snd (Array.get trace tp)) ~f:(fun evt -> String.equal r (fst(evt))) in
-       let maps = Set.fold db ~init:[] ~f:(fun acc evt -> match_terms trms (snd evt)
+       let maps = Set.fold db ~init:[] ~f:(fun acc evt -> match_terms trms_subst (snd evt)
                                                             (Map.empty (module String)) :: acc) in
        let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
                                                                  | None -> false
                                                                  | Some(map) -> not (Map.is_empty map)))
                      ~f:(fun map_opt -> Option.value_exn map_opt) in
-       let pred_fvs = Formula.fv (Predicate (r, trms)) in
-       let vars = List.filter vars ~f:(fun x -> Set.mem pred_fvs x) in
+       let fvs = Set.of_list (module String) (Pred.Term.fv_list trms_subst) in
+       let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
        Pdt.add_somes (pdt_of tp r trms vars maps')
     | Neg f ->
        let expl = eval vars pol tp f in
