@@ -164,6 +164,8 @@ end
 
 
 let explain trace v pol tp f =
+  let stop vars expl = match vars, expl with
+    | _ -> failwith "not yet" in
   let rec eval vars (pol: Polarity.t) tp (f: Formula.t) = match f with
     | TT ->
        (match pol with
@@ -199,8 +201,9 @@ let explain trace v pol tp f =
                                                                  | None -> false
                                                                  | Some(map) -> not (Map.is_empty map)))
                      ~f:(fun map_opt -> Option.value_exn map_opt) in
-       let pred_fvs = Set.elements (Formula.fv (Predicate (r, trms))) in
-       Pdt.add_somes (pdt_of tp r trms pred_fvs maps')
+       let pred_fvs = Formula.fv (Predicate (r, trms)) in
+       let vars = List.filter vars ~f:(fun x -> Set.mem pred_fvs x) in
+       Pdt.add_somes (pdt_of tp r trms vars maps')
     | Neg f ->
        let expl = eval vars pol tp f in
        Pdt.apply1_reduce Proof.opt_equal vars
@@ -259,7 +262,7 @@ let explain trace v pol tp f =
     | Until (i, f1, f2) -> (match pol with
                             | SAT -> Pdt.Leaf None
                             | VIO -> Pdt.Leaf None)
-  and since_sat vars i f1 f2 tp alphas_sat = Pdt.Leaf None
+  and since_sat vars i f1 f2 tp expl1s =
     (* let continue_alphas_sat i f1 f2 tp alphas_sat = *)
     (*   (match eval vars SAT tp f1 with *)
     (*    | Some expl1 -> *)
@@ -270,8 +273,21 @@ let explain trace v pol tp f =
     (*                        f1 f2 (tp - 1) (expl1 :: alphas_sat) *)
     (*        | None -> None) *)
     (*    | None -> None) in *)
+
     (* if Interval.mem 0 i then *)
-    (*   (match eval vars SAT tp f2 with *)
+    (*   (let expl1 = eval vars SAT tp f1 in *)
+    (*    let expl2 = eval vars SAT tp f2 in *)
+    (*    let result = Pdt.apply3_reduce Proof.equal vars *)
+    (*                   (fun sp1_opt sp2_opt sp1s -> *)
+    (*                     match sp1_opt with *)
+    (*                     | None -> *)
+    (*                     | Some (sp1) -> Proof.s_append sp sp1) *)
+    (*                   expl1 expl2 expl1s in *)
+
+    (*    match result with *)
+    (*    | *)
+    (* else  *)Pdt.Leaf None
+
     (*    | Some expl2 -> *)
     (*       (\* Found beta satisfaction within the interval *\) *)
     (*       let ssince_expl = Pdt.apply1_reduce Proof.equal vars *)
