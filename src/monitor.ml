@@ -27,6 +27,12 @@ module Polarity = struct
 
 end
 
+module Quantifier = struct
+
+  type t = Existential | Universal
+
+end
+
 let do_neg (p_opt: Proof.t option) (pol: Polarity.t) =
   match p_opt with
   | None -> None
@@ -162,11 +168,21 @@ module State = struct
 
 end
 
-
 let explain trace v pol tp f =
-  let stop vars expl = match vars, expl with
-    | _ -> failwith "not yet" in
-  let rec eval vars (pol: Polarity.t) tp (f: Formula.t) = match f with
+  (* note that the polarity pol considered is the one on the bottom level *)
+  let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
+    | [], Pdt.Leaf (Either.First (Proof.S _)), SAT -> true
+    | [], Leaf (Either.First (V _)), VIO -> true
+    | [], Leaf (Either.Second _), _ -> false
+    | x :: xs, Node (y, part), _ when String.equal x y ->
+       let (kind, pol) = Map.find_exn vars_map x in
+       match kind, pol with
+       | Quantifier.Existential, Polarity.SAT
+         | Universal, VIO -> Part.exists part (fun expl -> stop xs vars_map expl pol)
+       | Existential, VIO
+         | Universal, SAT -> Part.for_all part (fun expl -> stop xs vars_map expl pol)
+    | _ -> raise (Failure "stop: issue with variable ordering") in
+  let rec eval vars (pol: Polarity.t) tp (f: Formula.t) vars_map = match f with
     | TT ->
        (match pol with
         | SAT -> Pdt.Leaf (Some (Expl.Proof.S (STT tp)))
@@ -205,36 +221,38 @@ let explain trace v pol tp f =
        let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
        Pdt.add_somes (pdt_of tp r trms vars maps')
     | Neg f ->
-       let expl = eval vars pol tp f in
+       let expl = eval vars pol tp f vars_map in
        Pdt.apply1_reduce Proof.opt_equal vars
          (fun p_opt -> do_neg p_opt pol) expl
     | And (f1, f2) ->
-       let expl1 = eval vars pol tp f1 in
-       let expl2 = eval vars pol tp f2 in
+       let expl1 = eval vars pol tp f1 vars_map in
+       let expl2 = eval vars pol tp f2 vars_map in
        Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_and p1_opt p2_opt pol)) expl1 expl2
     | Or (f1, f2) ->
-       let expl1 = eval vars pol tp f1 in
-       let expl2 = eval vars pol tp f2 in
+       let expl1 = eval vars pol tp f1 vars_map in
+       let expl2 = eval vars pol tp f2 vars_map in
        Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_or p1_opt p2_opt pol)) expl1 expl2
     | Imp (f1, f2) ->
-       let expl1 = eval vars pol tp f1 in
-       let expl2 = eval vars pol tp f2 in
+       let expl1 = eval vars pol tp f1 vars_map in
+       let expl2 = eval vars pol tp f2 vars_map in
        Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_imp p1_opt p2_opt pol)) expl1 expl2
     | Iff (f1, f2) ->
-       let expl1 = eval vars pol tp f1 in
-       let expl2 = eval vars pol tp f2 in
+       let expl1 = eval vars pol tp f1 vars_map in
+       let expl2 = eval vars pol tp f2 vars_map in
        Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_iff p1_opt p2_opt pol)) expl1 expl2
     | Exists (x, tc, f) ->
-       let expl = eval vars pol tp f in
+       let vars_map = Map.add_exn vars_map ~key:x ~data:(Quantifier.Existential, pol) in
+       let expl = eval vars pol tp f vars_map in
        Pdt.hide_reduce Proof.opt_equal (vars @ [x])
          (fun p_opt -> do_exists_leaf x tc p_opt)
          (fun part -> Proof.Size.minp_list_somes (do_exists_node x tc part)) expl
     | Forall (x, tc, f) ->
-       let expl = eval vars pol tp f in
+       let vars_map = Map.add_exn vars_map ~key:x ~data:(Quantifier.Universal, pol) in
+       let expl = eval vars pol tp f vars_map in
        Pdt.hide_reduce Proof.opt_equal (vars @ [x])
          (fun p_opt -> do_forall_leaf x tc p_opt)
          (fun part -> Proof.Size.minp_list_somes (do_forall_node x tc part)) expl
@@ -257,12 +275,15 @@ let explain trace v pol tp f =
                         | SAT -> Pdt.Leaf None
                         | VIO -> Pdt.Leaf None)
     | Since (i, f1, f2) -> (match pol with
-                            | SAT -> since_sat vars i f1 f2 tp []
+                            | SAT ->
+                               (match since_sat vars i f1 f2 tp (Pdt.Leaf Fdeque.empty) vars_map with
+                                | First expl -> expl
+                                | Second _ -> raise (Failure "since_sat: algorithm could not construct explanation"))
                             | VIO -> Pdt.Leaf None)
     | Until (i, f1, f2) -> (match pol with
                             | SAT -> Pdt.Leaf None
                             | VIO -> Pdt.Leaf None)
-  and since_sat vars i f1 f2 tp expl1s =
+  and since_sat vars i f1 f2 tp expl1s vars_map =
     (* let continue_alphas_sat i f1 f2 tp alphas_sat = *)
     (*   (match eval vars SAT tp f1 with *)
     (*    | Some expl1 -> *)
@@ -273,20 +294,35 @@ let explain trace v pol tp f =
     (*                        f1 f2 (tp - 1) (expl1 :: alphas_sat) *)
     (*        | None -> None) *)
     (*    | None -> None) in *)
+    (* let either_equal e e' = match e, e' with *)
+    (*   | First p, First p' -> Proof.opt_equal p p' *)
+    (*   | Second sp1s, Second sp1s' -> Etc.fdeque_for_all2 sp1s sp1s' ~f:Proof.s_equal in *)
 
     (* if Interval.mem 0 i then *)
-    (*   (let expl1 = eval vars SAT tp f1 in *)
-    (*    let expl2 = eval vars SAT tp f2 in *)
-    (*    let result = Pdt.apply3_reduce Proof.equal vars *)
+    (*   (let expl1 = eval vars SAT tp f1 vars_map in *)
+    (*    let expl2 = eval vars SAT tp f2 vars_map in *)
+    (*    let expl = Pdt.apply3_reduce either_equal vars *)
     (*                   (fun sp1_opt sp2_opt sp1s -> *)
-    (*                     match sp1_opt with *)
-    (*                     | None -> *)
-    (*                     | Some (sp1) -> Proof.s_append sp sp1) *)
+    (*                     match sp1_opt, sp2_opt with *)
+    (*                     | None, None -> raise (Failure "since_sat: algorithm could not construct explanation") *)
+    (*                     | Some (Proof.S sp1), None -> *)
+    (*                        (\* Found alpha satisfaction within the interval *\) *)
+    (*                        (Either.second (Fdeque.enqueue_front sp1s sp1)) *)
+    (*                     | _, Some (Proof.S sp2) -> *)
+    (*                        (\* Found alpha satisfaction within the interval *\) *)
+    (*                        Either.first (Some (Proof.S (SSince (sp2, sp1s))))) *)
     (*                   expl1 expl2 expl1s in *)
+    (*    if stop vars vars_map expl SAT then *)
 
     (*    match result with *)
-    (*    | *)
-    (* else  *)Pdt.Leaf None
+    (*    | First expl -> First expl *)
+    (*    | Second *)
+    (*    | _ -> (match Hashtbl.find h_tp_ts (tp - 1) with *)
+    (*            | Some ts' -> let ts = Hashtbl.find_exn h_tp_ts tp in *)
+    (*                          since_sat vars (Interval.sub (ts - ts') i) *)
+    (*                            f1 f2 (tp - 1) (Fdeque.enqueue_front sp1s sp1) vars_map *)
+    (*            | None -> Pdt.Leaf None) *)
+    (* else *) Either.first (Pdt.Leaf None)
 
     (*    | Some expl2 -> *)
     (*       (\* Found beta satisfaction within the interval *\) *)
@@ -328,7 +364,7 @@ let explain trace v pol tp f =
     (*          let x = () in None) *)
     (*    else None) *)
   and until_sat i f1 f2 tp = Pdt.Leaf None in
-  eval [] pol tp f
+       eval [] pol tp f (Map.empty (module String))
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
 let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
