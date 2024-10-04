@@ -1060,9 +1060,19 @@ module Pdt = struct
                                    else hide_reduce p_eq vars f_leaf f_node (Node (y, part))
     | _ -> raise (Invalid_argument "function not defined for other cases")
 
-  let rec add_somes = function
+  let rec somes = function
     | Leaf l -> Leaf (Some l)
-    | Node (x, part) -> Node (x, Part.map part (fun expl -> add_somes expl))
+    | Node (x, part) -> Node (x, Part.map part (fun expl -> somes expl))
+
+  let rec unsomes = function
+    | Leaf None -> raise (Invalid_argument "found nones in the PDT")
+    | Leaf (Some l) -> Leaf l
+    | Node (x, part) -> Node (x, Part.map part (fun expl -> unsomes expl))
+
+  let rec uneither = function
+    | Leaf (Either.First l) -> Leaf l
+    | Leaf (Either.Second _) -> Leaf None
+    | Node (x, part) -> Node (x, Part.map part (fun expl -> uneither expl))
 
   let rec prune_nones = function
     | Leaf l_opt -> (match l_opt with
