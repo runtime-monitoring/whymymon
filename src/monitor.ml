@@ -97,8 +97,8 @@ let do_exists_node x tc part =
      (Part.values (Part.map2_dedup Proof.opt_equal sats (fun (s, p) ->
                        match p with
                        | Some (S sp) -> (let witness = Setc.some_elt tc s in
-                                  (Setc.Finite (Set.of_list (module Dom) [witness]),
-                                   Some (Proof.S (Proof.SExists (x, Setc.some_elt tc s, sp)))))
+                                         (Setc.Finite (Set.of_list (module Dom) [witness]),
+                                          Some (Proof.S (Proof.SExists (x, Setc.some_elt tc s, sp)))))
                        | Some (V vp) -> raise (Invalid_argument "found V proof in S partition")
                        | None -> raise (Invalid_argument "found None in Some partition")))))
   else [Some (V (Proof.VExists (x, Part.map_dedup Proof.v_equal part Proof.opt_unV)))]
@@ -176,10 +176,22 @@ let either_v_equal e e' = match e, e' with
   | Second vps, Second vps' -> Etc.fdeque_for_all2 vps vps' ~f:Proof.v_equal
 
 (* Note that the polarity pol considered is the one on the bottom level *)
-let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
+let rec stop_either vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
   | [], Pdt.Leaf (Either.First (Some (Proof.S _))), SAT -> true
   | [], Leaf (Either.First (Some (V _))), VIO -> true
   | [], Leaf (Either.Second _), _ -> false
+  | x :: xs, Node (y, part), _ when String.equal x y ->
+     let (kind, pol) = Map.find_exn vars_map x in
+     match kind, pol with
+     | Quantifier.Existential, Polarity.SAT
+       | Universal, VIO -> Part.exists part (fun expl -> stop_either xs vars_map expl pol)
+     | Existential, VIO
+       | Universal, SAT -> Part.for_all part (fun expl -> stop_either xs vars_map expl pol)
+     | _ -> raise (Failure "stop: issue with variable ordering")
+
+let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
+  | [], Pdt.Leaf (Some (Proof.S _)), SAT -> true
+  | [], Leaf (Some (V _)), VIO -> true
   | x :: xs, Node (y, part), _ when String.equal x y ->
      let (kind, pol) = Map.find_exn vars_map x in
      match kind, pol with
@@ -289,87 +301,142 @@ let explain trace v pol tp f =
                               | Some r -> ts - r in
                             match pol with
                             | SAT -> Pdt.uneither
-                                       (since_sat (l,r) vars f1 f2 tp (Pdt.Leaf (Either.second Fdeque.empty)) vars_map)
+                                       (since_sat (l,r) vars f1 f2 tp
+                                          (Pdt.Leaf (Either.second Fdeque.empty)) vars_map)
                             | VIO ->
-                                     Pdt.uneither
-                                       (since_vio tp (l,r) vars f1 f2 tp
-                                          (Pdt.Leaf (Either.second Fdeque.empty)) vars_map))
+                               Pdt.uneither
+                                 (since_vio tp (l,r) vars f1 f2 tp
+                                    (Pdt.Leaf (Either.second Fdeque.empty)) vars_map))
     | Until (i, f1, f2) -> (match pol with
                             | SAT -> Pdt.Leaf None
                             | VIO -> Pdt.Leaf None)
-  and since_sat (l,r) vars f1 f2 tp expl vars_map =
+  and once_sat cur_tp (l,r) vars f tp mexpl vars_map =
     if tp < 0 || r < 0 then
-      Pdt.Leaf (Either.first None)
+      Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
     else
       (let ts = fst (Array.get trace tp) in
        if ts < l then
-         Pdt.Leaf (Either.first None)
+         Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
+       else
+         (if ts <= r then
+            (let expl = eval vars SAT tp f vars_map in
+             let mexpl = Pdt.apply2_reduce Proof.opt_equal vars
+                           (fun sp_opt p_opt ->
+                             match p_opt with
+                             | None -> (match sp_opt with
+                                        | None -> None
+                                        | Some (Proof.S sp) -> Some (Proof.S (SOnce (cur_tp, sp)))
+                                        | _ -> raise (Invalid_argument "found V proof in S case"))
+                             | Some p -> Some p) expl mexpl in
+             if stop vars vars_map mexpl SAT then mexpl
+             else once_sat cur_tp (l,r) vars f (tp-1) mexpl vars_map)
+          else once_sat cur_tp (l,r) vars f (tp-1) mexpl vars_map))
+  and once_vio cur_tp (l,r) vars f tp mexpl vars_map =
+    if r < 0 then
+      Pdt.apply1_reduce either_v_equal vars
+        (function First p -> First p
+                | Second _ -> Either.first (Some (Proof.V (VOnceOut cur_tp)))) mexpl
+    else
+      (let ts = fst (Array.get trace tp) in
+       if ts < l then
+         (Pdt.apply1_reduce either_v_equal vars
+            (function First p -> First p
+                    | Second vps -> Either.first (Some (Proof.V (Proof.VOnce (cur_tp, tp-1, vps))))) mexpl)
+       else
+         (if ts <= r then
+            (let expl = eval vars VIO tp f vars_map in
+             let mexpl = Pdt.apply2_reduce either_v_equal vars
+                           (fun vp_opt p_vps ->
+                             match p_vps with
+                             | First p -> First p
+                             | Second vps ->
+                                (match vp_opt with
+                                 | None -> Either.first None
+                                 | Some (Proof.V vp) -> Either.second (Fdeque.enqueue_front vps vp)
+                                 | _ -> raise (Invalid_argument "found S proof in V case")))
+                           expl mexpl in
+             if stop_either vars vars_map mexpl VIO then mexpl
+             else once_vio cur_tp (l,r) vars f (tp-1) mexpl vars_map)
+          else once_vio cur_tp (l,r) vars f (tp-1) mexpl vars_map))
+  and since_sat (l,r) vars f1 f2 tp mexpl vars_map =
+    if tp < 0 || r < 0 then
+      Pdt.apply1_reduce either_s_equal vars
+        (function First p -> First p
+                | Second _ -> Either.first None) mexpl
+    else
+      (let ts = fst (Array.get trace tp) in
+       if ts < l then
+         Pdt.apply1_reduce either_s_equal vars
+           (function First p -> First p
+                   | Second _ -> Either.first None) mexpl
        else
          (* ts is inside the interval *)
          (if ts <= r then
             (let expl1 = eval vars SAT tp f1 vars_map in
              let expl2 = eval vars SAT tp f2 vars_map in
-             let expl = Pdt.apply3_reduce either_s_equal vars
-                          (fun sp1_opt sp2_opt p_sp1s ->
-                            match p_sp1s with
-                            | First p -> First p
-                            | Second sp1s ->
-                               (match sp1_opt, sp2_opt with
-                                | None, None -> Either.first None
-                                | Some (Proof.S sp1), None ->
-                                   (* Found alpha satisfaction within the interval *)
-                                   Either.second (Fdeque.enqueue_front sp1s sp1)
-                                | _, Some (Proof.S sp2) ->
-                                   (* Found beta satisfaction within the interval *)
-                                   Either.first (Some (Proof.S (SSince (sp2, sp1s))))))
-                          expl1 expl2 expl in
-             if stop vars vars_map expl SAT then expl
-             else since_sat (l,r) vars f1 f2 (tp-1) expl vars_map)
-          else since_sat (l,r) vars f1 f2 (tp-1) expl vars_map))
-  and since_vio cur_tp (l,r) vars f1 f2 tp expl vars_map =
-      if r < 0 then
-        Pdt.Leaf (Either.first (Some (Proof.V (VSinceOut cur_tp))))
-      else
-        (let ts = fst (Array.get trace tp) in
-         if ts < l then
-           (Pdt.apply1_reduce either_v_equal vars
-              (function
-                 First p -> First p
-               | Second vp2s -> Either.first (Some (Proof.V (Proof.VSinceInf (cur_tp, tp - 1, vp2s))))) expl)
-         else
-           (if ts <= r then
-              (let expl1 = eval vars VIO tp f1 vars_map in
-               let expl2 = eval vars VIO tp f2 vars_map in
-               let expl = Pdt.apply3_reduce either_v_equal vars
-                            (fun vp1_opt vp2_opt p_vp2s ->
-                              match p_vp2s with
-                              | First p -> First p
-                              | Second vp2s ->
-                                 (match vp1_opt, vp2_opt with
-                                  | None, None -> Either.first None
-                                  | Some (Proof.V vp1), None -> Either.first None
-                                  | None, Some (Proof.V vp2) ->
-                                     (* Found only beta violation within the interval *)
-                                     Either.second (Fdeque.enqueue_front vp2s vp2)
-                                  | Some (Proof.V vp1), Some (Proof.V vp2) ->
-                                     (* Found alpha and beta violation within the interval *)
-                                     Either.first
-                                       (Some (Proof.V (VSince (cur_tp, vp1, Fdeque.enqueue_front vp2s vp2))))))
-                            expl1 expl2 expl in
-               if stop vars vars_map expl VIO then expl
-               else since_vio cur_tp (l,r) vars f1 f2 tp expl vars_map)
-            else
-              (let expl1 = eval vars VIO tp f1 vars_map in
-               Pdt.apply2_reduce either_v_equal vars
-                 (fun vp1_opt p_vp2s ->
-                   match p_vp2s with
-                     First p -> First p
-                   | Second vp2s ->
-                      (match vp1_opt with
-                       | None -> Second vp2s
-                       | Some (Proof.V vp1) ->
-                          Either.first (Some (Proof.V (Proof.VSince (cur_tp, vp1, Fdeque.empty))))))
-                 expl1 expl)))
+             let mexpl = Pdt.apply3_reduce either_s_equal vars
+                           (fun sp1_opt sp2_opt p_sp1s ->
+                             match p_sp1s with
+                             | First p -> First p
+                             | Second sp1s ->
+                                (match sp1_opt, sp2_opt with
+                                 | None, None -> Either.first None
+                                 | Some (Proof.S sp1), None ->
+                                    (* Found alpha satisfaction within the interval *)
+                                    Either.second (Fdeque.enqueue_front sp1s sp1)
+                                 | _, Some (Proof.S sp2) ->
+                                    (* Found beta satisfaction within the interval *)
+                                    Either.first (Some (Proof.S (SSince (sp2, sp1s))))
+                                 | _ -> raise (Invalid_argument "found V proof in S deque")))
+                           expl1 expl2 mexpl in
+             if stop_either vars vars_map mexpl SAT then mexpl
+             else since_sat (l,r) vars f1 f2 (tp-1) mexpl vars_map)
+          else since_sat (l,r) vars f1 f2 (tp-1) mexpl vars_map))
+  and since_vio cur_tp (l,r) vars f1 f2 tp mexpl vars_map =
+    if r < 0 then
+      Pdt.apply1_reduce either_v_equal vars
+        (function First p -> First p
+                | Second _ -> Either.first (Some (Proof.V (VSinceOut cur_tp)))) mexpl
+    else
+      (let ts = fst (Array.get trace tp) in
+       if ts < l then
+         (Pdt.apply1_reduce either_v_equal vars
+            (function First p -> First p
+                    | Second vp2s -> Either.first (Some (Proof.V (Proof.VSinceInf (cur_tp, tp-1, vp2s))))) mexpl)
+       else
+         (if ts <= r then
+            (let expl1 = eval vars VIO tp f1 vars_map in
+             let expl2 = eval vars VIO tp f2 vars_map in
+             let mexpl = Pdt.apply3_reduce either_v_equal vars
+                           (fun vp1_opt vp2_opt p_vp2s ->
+                             match p_vp2s with
+                             | First p -> First p
+                             | Second vp2s ->
+                                (match vp1_opt, vp2_opt with
+                                 | None, None -> Either.first None
+                                 | Some (Proof.V vp1), None -> Either.first None
+                                 | None, Some (Proof.V vp2) ->
+                                    (* Found only beta violation within the interval *)
+                                    Either.second (Fdeque.enqueue_front vp2s vp2)
+                                 | Some (Proof.V vp1), Some (Proof.V vp2) ->
+                                    (* Found alpha and beta violation within the interval *)
+                                    Either.first
+                                      (Some (Proof.V (VSince (cur_tp, vp1, Fdeque.enqueue_front vp2s vp2))))))
+                           expl1 expl2 mexpl in
+             if stop_either vars vars_map mexpl VIO then mexpl
+             else since_vio cur_tp (l,r) vars f1 f2 (tp-1) mexpl vars_map)
+          else
+            (let expl1 = eval vars VIO tp f1 vars_map in
+             Pdt.apply2_reduce either_v_equal vars
+               (fun vp1_opt p_vp2s ->
+                 match p_vp2s with
+                   First p -> First p
+                 | Second vp2s ->
+                    (match vp1_opt with
+                     | None -> Second vp2s
+                     | Some (Proof.V vp1) ->
+                        Either.first (Some (Proof.V (Proof.VSince (cur_tp, vp1, Fdeque.empty))))))
+               expl1 mexpl)))
   and until_sat i f1 f2 tp = Pdt.Leaf None in
   eval [] pol tp f (Map.empty (module String))
 
@@ -421,39 +488,39 @@ let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream trace =
 let exec mon ~mon_path ?sig_path stream f pref mode extra_args =
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
-  (* Formula conversion *)
-  let f_path = Eio.Stdenv.cwd env / "tmp/f.mfotl" in
-  traceln "Saving formula in %a" Eio.Path.pp f_path;
-  Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
-  (* Instantiate process/domain managers *)
-  let proc_mgr = Eio.Stdenv.process_mgr env in
-  let domain_mgr = Eio.Stdenv.domain_mgr env in
-  Switch.run (fun sw ->
-      (* source and sink of emonitor's stdin *)
-      let w_source, w_sink = Eio.Process.pipe ~sw proc_mgr in
-      (* source and sink of emonitor's stdout *)
-      let r_source, r_sink = Eio.Process.pipe ~sw proc_mgr in
-      (* signals end of stream *)
-      let end_of_stream = ref false in
-      (* accumulated trace ref *)
-      let trace = ref [||]  in
-      try
-        Fiber.all
-          [ (* Spawn thread with external monitor process *)
-            (fun () ->
-              let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
-              let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
-              traceln "Running process with: %s" (Etc.string_list_to_string ~sep:", " args);
-              let status = Eio.Process.spawn ~sw ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
-                             proc_mgr (args @ extra_args) |> Eio.Process.await in
-              match status with
-              | `Exited i -> traceln "Process exited with: %d" i
-              | `Signaled i -> traceln "Process signaled with: %d" i);
-            (* External monitor I/O management *)
-            (fun () -> traceln "Writing lines to emonitor's stdin...";
-                       write_lines mon stream w_sink end_of_stream trace);
-            (fun () -> traceln "Reading lines from emonitor's stdout...";
-                       read ~domain_mgr r_source r_sink end_of_stream mon f !trace (Polarity.of_pref pref) mode)
-          ];
-      with Exit -> Stdio.printf "Reached the end of the log file.\n"
-    );
+                  (* Formula conversion *)
+                  let f_path = Eio.Stdenv.cwd env / "tmp/f.mfotl" in
+                  traceln "Saving formula in %a" Eio.Path.pp f_path;
+                  Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
+                  (* Instantiate process/domain managers *)
+                  let proc_mgr = Eio.Stdenv.process_mgr env in
+                  let domain_mgr = Eio.Stdenv.domain_mgr env in
+                  Switch.run (fun sw ->
+                      (* source and sink of emonitor's stdin *)
+                      let w_source, w_sink = Eio.Process.pipe ~sw proc_mgr in
+                      (* source and sink of emonitor's stdout *)
+                      let r_source, r_sink = Eio.Process.pipe ~sw proc_mgr in
+                      (* signals end of stream *)
+                      let end_of_stream = ref false in
+                      (* accumulated trace ref *)
+                      let trace = ref [||]  in
+                      try
+                        Fiber.all
+                          [ (* Spawn thread with external monitor process *)
+                            (fun () ->
+                              let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
+                              let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
+                              traceln "Running process with: %s" (Etc.string_list_to_string ~sep:", " args);
+                              let status = Eio.Process.spawn ~sw ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
+                                             proc_mgr (args @ extra_args) |> Eio.Process.await in
+                              match status with
+                              | `Exited i -> traceln "Process exited with: %d" i
+                              | `Signaled i -> traceln "Process signaled with: %d" i);
+                            (* External monitor I/O management *)
+                            (fun () -> traceln "Writing lines to emonitor's stdin...";
+                                       write_lines mon stream w_sink end_of_stream trace);
+                            (fun () -> traceln "Reading lines from emonitor's stdout...";
+                                       read ~domain_mgr r_source r_sink end_of_stream mon f !trace (Polarity.of_pref pref) mode)
+                          ];
+                      with Exit -> Stdio.printf "Reached the end of the log file.\n"
+                    );

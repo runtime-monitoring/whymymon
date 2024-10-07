@@ -102,6 +102,8 @@ module Proof : sig
   val s_equal: sp -> sp -> bool
   val v_equal: vp -> vp -> bool
   val equal: t -> t -> bool
+  val opt_s_equal: sp option -> sp option -> bool
+  val opt_v_equal: vp option -> vp option -> bool
   val opt_equal: t option -> t option -> bool
 
   val unS: t -> sp

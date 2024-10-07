@@ -305,6 +305,18 @@ module Proof = struct
     | V vp, V vp' -> v_equal vp vp'
     | _ -> false
 
+  let opt_s_equal x y = match x, y with
+    | None, None -> true
+    | Some _, None -> false
+    | None, Some _ -> false
+    | Some x, Some y -> s_equal x y
+
+  let opt_v_equal x y = match x, y with
+    | None, None -> true
+    | Some _, None -> false
+    | None, Some _ -> false
+    | Some x, Some y -> v_equal x y
+
   let opt_equal x y = match x, y with
     | None, None -> true
     | Some _, None -> false
