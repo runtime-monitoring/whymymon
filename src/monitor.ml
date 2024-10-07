@@ -189,14 +189,6 @@ let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
        | Universal, SAT -> Part.for_all part (fun expl -> stop xs vars_map expl pol)
      | _ -> raise (Failure "stop: issue with variable ordering")
 
-let continue trace vars i f1 f2 tp expl vars_map recf =
-  if tp > 0 then
-    let ts = fst (Array.get trace tp) in
-    let prev_ts = fst (Array.get trace (tp - 1)) in
-    recf vars (Interval.sub (ts - prev_ts) i)
-      f1 f2 (tp - 1) expl vars_map
-  else Pdt.Leaf (Either.first None)
-
 let explain trace v pol tp f =
   let rec eval vars (pol: Polarity.t) tp (f: Formula.t) vars_map = match f with
     | TT ->
@@ -290,87 +282,94 @@ let explain trace v pol tp f =
     | Always (i, f) -> (match pol with
                         | SAT -> Pdt.Leaf None
                         | VIO -> Pdt.Leaf None)
-    | Since (i, f1, f2) -> (match pol with
+    | Since (i, f1, f2) -> (let ts = fst (Array.get trace tp) in
+                            let l = ts - Interval.left i in
+                            let r = match Interval.right i with
+                              | None -> 0
+                              | Some r -> ts - r in
+                            match pol with
                             | SAT -> Pdt.uneither
-                                       (since_sat vars i f1 f2 tp (Pdt.Leaf (Either.second Fdeque.empty)) vars_map)
-                            | VIO -> let ts = fst (Array.get trace tp) in
-                                     let lim_ts = match Interval.right i with
-                                       | None -> 0
-                                       | Some r -> ts - r in
+                                       (since_sat (l,r) vars f1 f2 tp (Pdt.Leaf (Either.second Fdeque.empty)) vars_map)
+                            | VIO ->
                                      Pdt.uneither
-                                       (since_vio tp lim_ts vars i f1 f2 tp
+                                       (since_vio tp (l,r) vars f1 f2 tp
                                           (Pdt.Leaf (Either.second Fdeque.empty)) vars_map))
     | Until (i, f1, f2) -> (match pol with
                             | SAT -> Pdt.Leaf None
                             | VIO -> Pdt.Leaf None)
-  and since_sat vars i f1 f2 tp expl vars_map =
-    if Interval.mem 0 i then
-      (let expl1 = eval vars SAT tp f1 vars_map in
-       let expl2 = eval vars SAT tp f2 vars_map in
-       let expl = Pdt.apply3_reduce either_s_equal vars
-                    (fun sp1_opt sp2_opt p_sp1s ->
-                      match p_sp1s with
-                      | First p -> First p
-                      | Second sp1s ->
-                         (match sp1_opt, sp2_opt with
-                          | None, None -> Either.first None
-                          | Some (Proof.S sp1), None ->
-                             (* Found alpha satisfaction within the interval *)
-                             Either.second (Fdeque.enqueue_front sp1s sp1)
-                          | _, Some (Proof.S sp2) ->
-                             (* Found beta satisfaction within the interval *)
-                             Either.first (Some (Proof.S (SSince (sp2, sp1s))))))
-                    expl1 expl2 expl in
-       if stop vars vars_map expl SAT then expl
-       else continue trace vars i f1 f2 tp expl vars_map since_sat)
-    else continue trace vars i f1 f2 tp expl vars_map since_sat
-  and since_vio cur_tp lim_ts vars i f1 f2 tp expl vars_map =
-    (* The interval has not started but reached the first time-point *)
-    if not (Interval.mem 0 i) && Int.equal tp 0 then
-      Pdt.Leaf (Either.first (Some (Proof.V (VSinceOut cur_tp))))
+  and since_sat (l,r) vars f1 f2 tp expl vars_map =
+    if tp < 0 || r < 0 then
+      Pdt.Leaf (Either.first None)
     else
-      (* The time-point is before the interval boundary *)
       (let ts = fst (Array.get trace tp) in
-       if ts < lim_ts then
-         (Pdt.apply1_reduce either_v_equal vars
-            (function
-               First p -> First p
-             | Second vp2s -> Either.first (Some (Proof.V (Proof.VSinceInf (cur_tp, tp - 1, vp2s))))) expl)
+       if ts < l then
+         Pdt.Leaf (Either.first None)
        else
-         (* The time-point is inside the interval *)
-         (if Interval.mem 0 i then
-            (let expl1 = eval vars VIO tp f1 vars_map in
-             let expl2 = eval vars VIO tp f2 vars_map in
-             let expl = Pdt.apply3_reduce either_v_equal vars
-                          (fun vp1_opt vp2_opt p_vp2s ->
-                            match p_vp2s with
+         (* ts is inside the interval *)
+         (if ts <= r then
+            (let expl1 = eval vars SAT tp f1 vars_map in
+             let expl2 = eval vars SAT tp f2 vars_map in
+             let expl = Pdt.apply3_reduce either_s_equal vars
+                          (fun sp1_opt sp2_opt p_sp1s ->
+                            match p_sp1s with
                             | First p -> First p
-                            | Second vp2s ->
-                               (match vp1_opt, vp2_opt with
+                            | Second sp1s ->
+                               (match sp1_opt, sp2_opt with
                                 | None, None -> Either.first None
-                                | Some (Proof.V vp1), None -> Either.first None
-                                | None, Some (Proof.V vp2) ->
-                                   (* Found only beta violation within the interval *)
-                                   Either.second (Fdeque.enqueue_front vp2s vp2)
-                                | Some (Proof.V vp1), Some (Proof.V vp2) ->
-                                   (* Found alpha and beta violation within the interval *)
-                                   Either.first (Some (Proof.V (VSince (cur_tp, vp1, Fdeque.enqueue_front vp2s vp2)))))
-                          ) expl1 expl2 expl in
-             if stop vars vars_map expl VIO then expl
-             else continue trace vars i f1 f2 tp expl vars_map (since_vio cur_tp lim_ts))
-          else
-            (* The time-point is between cur_tp (initial time-point) and the interval *)
-            (let expl1 = eval vars VIO tp f1 vars_map in
-             Pdt.apply2_reduce either_v_equal vars
-               (fun vp1_opt p_vp2s ->
-                 match p_vp2s with
-                   First p -> First p
-                 | Second vp2s ->
-                    (match vp1_opt with
-                     | None -> Second vp2s
-                     | Some (Proof.V vp1) ->
-                        Either.first (Some (Proof.V (Proof.VSince (cur_tp, vp1, Fdeque.empty))))))
-               expl1 expl)))
+                                | Some (Proof.S sp1), None ->
+                                   (* Found alpha satisfaction within the interval *)
+                                   Either.second (Fdeque.enqueue_front sp1s sp1)
+                                | _, Some (Proof.S sp2) ->
+                                   (* Found beta satisfaction within the interval *)
+                                   Either.first (Some (Proof.S (SSince (sp2, sp1s))))))
+                          expl1 expl2 expl in
+             if stop vars vars_map expl SAT then expl
+             else since_sat (l,r) vars f1 f2 (tp-1) expl vars_map)
+          else since_sat (l,r) vars f1 f2 (tp-1) expl vars_map))
+  and since_vio cur_tp (l,r) vars f1 f2 tp expl vars_map =
+      if r < 0 then
+        Pdt.Leaf (Either.first (Some (Proof.V (VSinceOut cur_tp))))
+      else
+        (let ts = fst (Array.get trace tp) in
+         if ts < l then
+           (Pdt.apply1_reduce either_v_equal vars
+              (function
+                 First p -> First p
+               | Second vp2s -> Either.first (Some (Proof.V (Proof.VSinceInf (cur_tp, tp - 1, vp2s))))) expl)
+         else
+           (if ts <= r then
+              (let expl1 = eval vars VIO tp f1 vars_map in
+               let expl2 = eval vars VIO tp f2 vars_map in
+               let expl = Pdt.apply3_reduce either_v_equal vars
+                            (fun vp1_opt vp2_opt p_vp2s ->
+                              match p_vp2s with
+                              | First p -> First p
+                              | Second vp2s ->
+                                 (match vp1_opt, vp2_opt with
+                                  | None, None -> Either.first None
+                                  | Some (Proof.V vp1), None -> Either.first None
+                                  | None, Some (Proof.V vp2) ->
+                                     (* Found only beta violation within the interval *)
+                                     Either.second (Fdeque.enqueue_front vp2s vp2)
+                                  | Some (Proof.V vp1), Some (Proof.V vp2) ->
+                                     (* Found alpha and beta violation within the interval *)
+                                     Either.first
+                                       (Some (Proof.V (VSince (cur_tp, vp1, Fdeque.enqueue_front vp2s vp2))))))
+                            expl1 expl2 expl in
+               if stop vars vars_map expl VIO then expl
+               else since_vio cur_tp (l,r) vars f1 f2 tp expl vars_map)
+            else
+              (let expl1 = eval vars VIO tp f1 vars_map in
+               Pdt.apply2_reduce either_v_equal vars
+                 (fun vp1_opt p_vp2s ->
+                   match p_vp2s with
+                     First p -> First p
+                   | Second vp2s ->
+                      (match vp1_opt with
+                       | None -> Second vp2s
+                       | Some (Proof.V vp1) ->
+                          Either.first (Some (Proof.V (Proof.VSince (cur_tp, vp1, Fdeque.empty))))))
+                 expl1 expl)))
   and until_sat i f1 f2 tp = Pdt.Leaf None in
   eval [] pol tp f (Map.empty (module String))
 
