@@ -9,7 +9,7 @@
 
 open Etc
 
-val to_ts_assignments: Argument.Monitor.t -> string list -> string -> timestamp * Assignment.t list
+val to_tpts_assignments: Argument.Monitor.t -> string list -> string -> timepoint * timestamp * Assignment.t list
 
 val write_line: Argument.Monitor.t -> timestamp * Db.t -> string
 

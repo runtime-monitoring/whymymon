@@ -11,6 +11,6 @@ open Etc
 
 module Monpoly : sig
 
-  val parse: string -> timepoint * string list list
+  val parse: string -> timepoint * timestamp * string list list
 
 end

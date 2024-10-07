@@ -15,16 +15,18 @@ module Parsebuf = struct
   type t = { lexbuf: Lexing.lexbuf
            ; mutable token: Emonitor_lexer.token
            ; mutable tp: timepoint
+           ; mutable ts: timestamp
            ; mutable sss: (string list) list }
 
   let init lexbuf = { lexbuf = lexbuf
                     ; token = Emonitor_lexer.token lexbuf
                     ; tp = -1
+                    ; ts = -1
                     ; sss = [] }
 
   let next pb = pb.token <- Emonitor_lexer.token pb.lexbuf
 
-  let clean pb = { pb with tp = -1; sss = [] }
+  let clean pb = { pb with tp = -1; ts = -1; sss = [] }
 
   let update_sss pb ss = pb.sss <- List.cons ss pb.sss
 
@@ -56,7 +58,8 @@ module Monpoly = struct
       | STR s -> let ts = try Some (Int.of_string s)
                           with _ -> None in
                  (match ts with
-                  | Some ts -> Parsebuf.next pb;
+                  | Some ts -> pb.ts <- ts;
+                               Parsebuf.next pb;
                                parse_tp ()
                   | None -> Error (pb, "expected a time-stamp but found " ^ s))
       | t -> Error (pb, "expected a time-stamp but found " ^ string_of_token t)
@@ -99,7 +102,7 @@ module Monpoly = struct
   let parse line =
     let pb = Parsebuf.init (Lexing.from_string line) in
     match parse_aux pb with
-    | Processed pb -> (pb.tp, pb.sss)
+    | Processed pb -> (pb.tp, pb.ts, pb.sss)
     | Error (_, s) -> raise (Invalid_argument s)
 
 end

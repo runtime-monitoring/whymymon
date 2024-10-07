@@ -202,6 +202,7 @@ let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
      | _ -> raise (Failure "stop: issue with variable ordering")
 
 let explain trace v pol tp f =
+  traceln "tp = %d" tp;
   let rec eval vars (pol: Polarity.t) tp (f: Formula.t) vars_map = match f with
     | TT ->
        (match pol with
@@ -231,6 +232,7 @@ let explain trace v pol tp f =
                                                         | Some d -> Const d)
                                                      else trm) in
        let db = Set.filter (snd (Array.get trace tp)) ~f:(fun evt -> String.equal r (fst(evt))) in
+       (* traceln "db = %s" (Db.to_string (snd (Array.get trace tp))); *)
        let maps = Set.fold db ~init:[] ~f:(fun acc evt -> match_terms trms_subst (snd evt)
                                                             (Map.empty (module String)) :: acc) in
        let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
@@ -450,11 +452,10 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
     traceln "Read emonitor line: %s" line;
     (* traceln "Trace size: %d" (Fdeque.length !trace); *)
     if String.equal line "Stop" then raise Exit;
-    let (ts, assignments) = Emonitor.to_ts_assignments mon vars line in
+    let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
     traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
-    let tp = Array.length trace - 1 in
     List.iter assignments ~f:(fun v ->
-        let expl = explain trace v pol tp f in
+        let expl = explain !trace v pol tp f in
         match mode with
         | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
         (* | Verified -> let (b, _, _) = List.hd_exn (Checker_interface.check (Array.to_list trace) f [expl]) in *)
@@ -520,7 +521,7 @@ let exec mon ~mon_path ?sig_path stream f pref mode extra_args =
                             (fun () -> traceln "Writing lines to emonitor's stdin...";
                                        write_lines mon stream w_sink end_of_stream trace);
                             (fun () -> traceln "Reading lines from emonitor's stdout...";
-                                       read ~domain_mgr r_source r_sink end_of_stream mon f !trace (Polarity.of_pref pref) mode)
+                                       read ~domain_mgr r_source r_sink end_of_stream mon f trace (Polarity.of_pref pref) mode)
                           ];
                       with Exit -> Stdio.printf "Reached the end of the log file.\n"
                     );
