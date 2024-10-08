@@ -152,6 +152,8 @@ module Pdt : sig
   val split_prod: ('a * 'b) t -> 'a t * 'b t
   val split_list: 'a list t -> 'a t list
   val hide: string list -> ('a -> 'b) -> ('a Part.t -> 'b) -> 'a t -> 'b t
+  val is_leaf: 'a t -> bool
+  val is_node: 'a t -> bool
   val to_string: (string -> 'a -> string) -> string -> 'a t -> string
 
   val equal: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool

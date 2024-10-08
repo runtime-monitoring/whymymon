@@ -928,6 +928,14 @@ module Pdt = struct
     | Leaf l -> List.map l ~f:(fun el -> Leaf el)
     | Node (x, part) -> List.map (Part.split_list (Part.map part split_list)) ~f:(fun el -> Node (x, el))
 
+  let is_leaf = function
+    | Leaf _ -> true
+    | Node _ -> false
+
+  let is_node = function
+    | Leaf _ -> false
+    | Node _ -> true
+
   let rec to_string f indent pdt =
     let indent' = (String.make 4 ' ') ^ indent in
     match pdt with
