@@ -126,10 +126,10 @@ let do_forall_node x tc part =
                        | Some (S sp) -> raise (Invalid_argument "found S proof in V partition")
                        | None -> raise (Invalid_argument "found None in Some partition")))))
 
-let print_maps maps =
-  Stdio.print_endline "> Map:";
-  List.iter maps ~f:(fun map -> Map.iteri map ~f:(fun ~key:k ~data:v ->
-                                    Stdio.printf "%s -> %s\n" (Term.to_string k) (Dom.to_string v)))
+let maps_to_string maps =
+  "> Map:" ^ String.concat (List.join (List.map maps ~f:(fun map ->
+                                           List.map (Map.to_alist map) ~f:(fun (k, v) ->
+                                               Printf.sprintf "%s -> %s\n" k (Dom.to_string v)))))
 
 let rec match_terms trms ds map =
   match trms, ds with
@@ -138,7 +138,8 @@ let rec match_terms trms ds map =
   | Var x :: trms, d :: ds -> (match match_terms trms ds map with
                                | None -> None
                                | Some(map') -> (match Map.find map' x with
-                                                | None -> let map'' = Map.add_exn map' ~key:x ~data:d in Some(map'')
+                                                | None -> let map'' = Map.add_exn map' ~key:x ~data:d in
+                                                          Some(map'')
                                                 | Some z -> (if Dom.equal d z then Some map' else None)))
   | _, _ -> None
 
@@ -239,17 +240,17 @@ let explain trace v pol tp f =
                                                         | None -> trm
                                                         | Some d -> Const d)
                                                      else trm) in
-       traceln "db = %s" (Db.to_string (snd (Array.get trace tp)));
+       (* traceln "db = %s" (Db.to_string (snd (Array.get trace tp))); *)
        let db = Set.filter (snd (Array.get trace tp)) ~f:(fun evt -> String.equal r (fst(evt))) in
        let maps = Set.fold db ~init:[] ~f:(fun acc evt -> match_terms trms_subst (snd evt)
                                                             (Map.empty (module String)) :: acc) in
-       let maps' = List.map (List.filter maps ~f:(fun map_opt -> match map_opt with
-                                                                 | None -> false
-                                                                 | Some(map) -> not (Map.is_empty map)))
+       (* traceln "|maps| = %d" (List.length maps); *)
+       let maps' = List.map (List.filter maps ~f:(fun map_opt -> Option.is_some map_opt))
                      ~f:(fun map_opt -> Option.value_exn map_opt) in
+       (* traceln "maps = %s" (maps_to_string maps'); *)
        let fvs = Set.of_list (module String) (Pred.Term.fv_list trms_subst) in
        let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
-       let expl = Pdt.somes (pdt_of tp r trms vars maps') in
+       let expl = Pdt.somes (pdt_of tp r trms_subst vars maps') in
        traceln "PREDICATE expl = %s" (Expl.to_string expl);
        expl
     | Neg f ->
