@@ -38,56 +38,49 @@ module Quantifier = struct
 end
 
 let do_neg (p_opt: Proof.t option) (pol: Polarity.t) =
-  match p_opt with
-  | None -> None
-  | Some p -> (match p, pol with
-               | S sp, SAT -> Some (Proof.V (VNeg sp))
-               | S _ , VIO -> None
-               | V _ , SAT -> None
-               | V vp, VIO -> Some (S (SNeg vp)))
+  match p_opt, pol with
+  | Some (S sp), SAT -> Some (Proof.V (VNeg sp))
+  | Some (V vp), VIO -> Some (S (SNeg vp))
+  | _ -> None
 
 let do_and (p1_opt: Proof.t option) (p2_opt: Proof.t option) (pol: Polarity.t) : Proof.t option =
-  match p1_opt, p2_opt with
-  | Some p1, Some p2 -> Proof.Size.minp_list
-                          (match p1, p2, pol with
-                           | S sp1, S sp2, SAT -> [Proof.S (SAnd (sp1, sp2))]
-                           | S _ , V vp2, VIO -> [V (VAndR (vp2))]
-                           | V vp1, S _, VIO -> [V (VAndL (vp1))]
-                           | V vp1, V vp2, VIO -> [(V (VAndL (vp1))); (V (VAndR (vp2)))]
-                           | _ -> [])
-  | _ -> None
-
+  Proof.Size.minp_list
+    (match p1_opt, p2_opt, pol with
+     | Some (S sp1), Some (S sp2), SAT -> [Proof.S (SAnd (sp1, sp2))]
+     | None, Some (V vp2), VIO
+       | Some (S _), Some (V vp2), VIO -> [V (VAndR (vp2))]
+     | Some (V vp1), None, VIO
+       | Some (V vp1), Some (S _), VIO -> [V (VAndL (vp1))]
+     | Some (V vp1), Some (V vp2), VIO -> [(V (VAndL (vp1))); (V (VAndR (vp2)))]
+     | _ -> [])
 
 let do_or (p1_opt: Proof.t option) (p2_opt: Proof.t option) (pol: Polarity.t) : Proof.t option =
-  match p1_opt, p2_opt with
-  | Some p1, Some p2 -> Proof.Size.minp_list
-                          (match p1, p2, pol with
-                           | S sp1, S sp2, SAT -> [(S (SOrL (sp1))); (S (SOrR(sp2)))]
-                           | S sp1, V _, SAT -> [S (SOrL (sp1))]
-                           | V _ , S sp2, SAT -> [S (SOrR (sp2))]
-                           | V vp1, V vp2, VIO -> [V (VOr (vp1, vp2))]
-                           | _ -> [])
-  | _ -> None
+  Proof.Size.minp_list
+    (match p1_opt, p2_opt, pol with
+     | Some (S sp1), Some (S sp2), SAT -> [(S (SOrL (sp1))); (S (SOrR(sp2)))]
+     | Some (S sp1), None, SAT
+       | Some (S sp1), Some (V _), SAT -> [S (SOrL (sp1))]
+     | None, Some (S sp2), SAT
+       | Some (V _), Some (S sp2), SAT -> [S (SOrR (sp2))]
+     | Some (V vp1), Some (V vp2), VIO -> [V (VOr (vp1, vp2))]
+     | _ -> [])
 
 let do_imp (p1_opt: Proof.t option) (p2_opt: Proof.t option) (pol: Polarity.t) : Proof.t option =
-  match p1_opt, p2_opt with
-  | Some p1, Some p2 -> Proof.Size.minp_list
-                          (match p1, p2, pol with
-                           | S _, S sp2, SAT -> [S (SImpR sp2)]
-                           | S sp1, V vp2, VIO -> [V (VImp (sp1, vp2))]
-                           | V vp1, S sp2, SAT -> [S (SImpL vp1); S (SImpR sp2)]
-                           | V vp1, V _, SAT -> [S (SImpL vp1)]
-                           | _ -> [])
-  | _ -> None
+  Proof.Size.minp_list
+    (match p1_opt, p2_opt, pol with
+     | Some (S _), Some (S sp2), SAT -> [S (SImpR sp2)]
+     | Some (S sp1), Some (V vp2), VIO -> [V (VImp (sp1, vp2))]
+     | Some (V vp1), Some (S sp2), SAT -> [S (SImpL vp1); S (SImpR sp2)]
+     | Some (V vp1), None, SAT
+       | Some (V vp1), Some (V _), SAT -> [S (SImpL vp1)]
+     | _ -> [])
 
 let do_iff (p1_opt: Proof.t option) (p2_opt: Proof.t option) (pol: Polarity.t) : Proof.t option =
-  match p1_opt, p2_opt with
-  | Some p1, Some p2 -> (match p1, p2, pol with
-                         | S sp1, S sp2, SAT -> Some (S (SIffSS (sp1, sp2)))
-                         | S sp1, V vp2, VIO -> Some (V (VIffSV (sp1, vp2)))
-                         | V vp1, S sp2, VIO -> Some (V (VIffVS (vp1, sp2)))
-                         | V vp1, V vp2, SAT -> Some (S (SIffVV (vp1, vp2)))
-                         | _ -> None)
+  match p1_opt, p2_opt, pol with
+  | Some (S sp1), Some (S sp2), SAT -> Some (S (SIffSS (sp1, sp2)))
+  | Some (S sp1), Some (V vp2), VIO -> Some (V (VIffSV (sp1, vp2)))
+  | Some (V vp1), Some (S sp2), VIO -> Some (V (VIffVS (vp1, sp2)))
+  | Some (V vp1), Some (V vp2), SAT -> Some (S (SIffVV (vp1, vp2)))
 
 let do_exists_leaf x tc = function
   | Some p -> (match p with
@@ -256,8 +249,8 @@ let explain trace v pol tp f =
     | Neg f ->
        let expl = eval vars pol tp f vars_map in
        let expl = Pdt.apply1_reduce Proof.opt_equal vars
-                    (fun p_opt -> do_neg p_opt pol) expl in
-       traceln "NEG expl = %s" (Expl.to_string expl);
+                    (fun p_opt -> do_neg p_opt (Polarity.invert pol)) expl in
+       traceln "NEG %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl);
        expl
     | And (f1, f2) ->
        let expl1 = eval vars pol tp f1 vars_map in
@@ -373,7 +366,9 @@ let explain trace v pol tp f =
     if tp < 0 then
       Pdt.apply1_reduce either_v_equal vars
         (function First p -> First p
-                | Second _ -> Either.first None) mexpl
+                | Second vps -> if l < 0 then
+                                  Either.first (Some (Proof.V (Proof.VOnce (cur_tp, tp-1, vps))))
+                                else Either.first None) mexpl
     else
       (if r < 0 then
          Pdt.apply1_reduce either_v_equal vars
@@ -455,7 +450,9 @@ let explain trace v pol tp f =
     if tp < 0 then
       Pdt.apply1_reduce either_v_equal vars
         (function First p -> First p
-                | Second _ -> Either.first None) mexpl
+                | Second vp2s -> if l < 0 then
+                                   Either.first (Some (Proof.V (Proof.VSinceInf (cur_tp, tp-1, vp2s))))
+                                 else Either.first None) mexpl
     else
       (if r < 0 then
          Pdt.apply1_reduce either_v_equal vars
