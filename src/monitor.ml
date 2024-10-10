@@ -168,14 +168,16 @@ end
 let either_s_equal e e' = match e, e' with
   | First p, First p' -> Proof.opt_equal p p'
   | Second sps, Second sps' -> Etc.fdeque_for_all2 sps sps' ~f:Proof.s_equal
+  | _ -> false
 
 let either_v_equal e e' = match e, e' with
   | First p, First p' -> Proof.opt_equal p p'
   | Second vps, Second vps' -> Etc.fdeque_for_all2 vps vps' ~f:Proof.v_equal
+  | _ -> false
 
 (* Note that the polarity pol considered is the one on the bottom level *)
 let rec stop_either vars vars_map expl (pol: Polarity.t) =
-  traceln "STOP_EITHER |vars| = %d; pol = %s" (List.length vars) (Polarity.to_string pol);
+  (* traceln "STOP_EITHER |vars| = %d; pol = %s" (List.length vars) (Polarity.to_string pol); *)
   match vars, expl, pol with
   | [], Pdt.Leaf (Either.First (Some (Proof.S _))), SAT -> true
   | [], Leaf (First (Some (V _))), VIO -> true
@@ -187,9 +189,7 @@ let rec stop_either vars vars_map expl (pol: Polarity.t) =
       | Existential, VIO
         | Universal, SAT -> Part.for_all part (fun expl -> stop_either xs vars_map expl pol)
       | _ -> raise (Failure "stop: issue with variable ordering"))
-  | _, Leaf (Either.First (Some p)), _ -> traceln "p = %s" (Proof.to_string "" p);
-                                          false
-  | _ -> traceln "is node? %b" (Pdt.is_node expl); false
+  | _ -> false
 
 let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
   | [], Pdt.Leaf (Some (Proof.S _)), SAT -> true
@@ -204,7 +204,7 @@ let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
      | _ -> raise (Failure "stop: issue with variable ordering")
 
 let explain trace v pol tp f =
-  traceln "tp = %d" tp;
+  (* traceln "tp = %d" tp; *)
   let rec eval vars (pol: Polarity.t) tp (f: Formula.t) vars_map = match f with
     | TT ->
        (match pol with
@@ -230,7 +230,8 @@ let explain trace v pol tp f =
        (* Replace trms with values coming from variable assignment v *)
        let trms_subst = List.map trms ~f:(fun trm -> if Pred.Term.is_var trm then
                                                        (match Map.find v (Pred.Term.unvar trm) with
-                                                        | None -> trm
+                                                        | None -> (* traceln "Var = %s" (Term.to_string trm); *)
+                                                           trm
                                                         | Some d -> Const d)
                                                      else trm) in
        (* traceln "db = %s" (Db.to_string (snd (Array.get trace tp))); *)
@@ -242,22 +243,25 @@ let explain trace v pol tp f =
                      ~f:(fun map_opt -> Option.value_exn map_opt) in
        (* traceln "maps = %s" (maps_to_string maps'); *)
        let fvs = Set.of_list (module String) (Pred.Term.fv_list trms_subst) in
+       (* traceln "|fvs| = %d" (Set.length fvs); *)
+       (* traceln "|vars| = %d" (List.length vars); *)
        let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
+       (* traceln "|vars| = %d" (List.length vars); *)
        let expl = Pdt.somes (pdt_of tp r trms_subst vars maps') in
-       traceln "PREDICATE expl = %s" (Expl.to_string expl);
+       (* traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl); *)
        expl
     | Neg f ->
        let expl = eval vars pol tp f vars_map in
        let expl = Pdt.apply1_reduce Proof.opt_equal vars
                     (fun p_opt -> do_neg p_opt (Polarity.invert pol)) expl in
-       traceln "NEG %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl);
+       (* traceln "NEG %s expl = %s" (Polarity.to_string (Polarity.invert pol)) (Expl.to_string expl); *)
        expl
     | And (f1, f2) ->
        let expl1 = eval vars pol tp f1 vars_map in
        let expl2 = eval vars pol tp f2 vars_map in
        let expl = Pdt.apply2_reduce Proof.opt_equal vars
                     (fun p1_opt p2_opt -> (do_and p1_opt p2_opt pol)) expl1 expl2 in
-       traceln "AND expl = %s" (Expl.to_string expl);
+       (* traceln "AND expl = %s" (Expl.to_string expl); *)
        expl
     | Or (f1, f2) ->
        let expl1 = eval vars pol tp f1 vars_map in
@@ -269,7 +273,7 @@ let explain trace v pol tp f =
        let expl2 = eval vars pol tp f2 vars_map in
        let expl = Pdt.apply2_reduce Proof.opt_equal vars
                     (fun p1_opt p2_opt -> (do_imp p1_opt p2_opt pol)) expl1 expl2 in
-       traceln "IMP expl = %s" (Expl.to_string expl);
+       (* traceln "IMP expl = %s" (Expl.to_string expl); *)
        expl
     | Iff (f1, f2) ->
        let expl1 = eval vars pol tp f1 vars_map in
@@ -278,12 +282,12 @@ let explain trace v pol tp f =
          (fun p1_opt p2_opt -> (do_iff p1_opt p2_opt pol)) expl1 expl2
     | Exists (x, tc, f) ->
        let vars_map = Map.add_exn vars_map ~key:x ~data:(Quantifier.Existential, pol) in
-       let expl = eval vars pol tp f vars_map in
+       let expl = eval (vars @ [x]) pol tp f vars_map in
        let expl =
          Pdt.hide_reduce Proof.opt_equal (vars @ [x])
            (fun p_opt -> do_exists_leaf x tc p_opt)
            (fun part -> Proof.Size.minp_list_somes (do_exists_node x tc part)) expl in
-       traceln "EXISTS expl = %s" (Expl.to_string expl);
+       (* traceln "EXISTS expl = %s" (Expl.to_string expl); *)
        expl
     | Forall (x, tc, f) ->
        let vars_map = Map.add_exn vars_map ~key:x ~data:(Quantifier.Universal, pol) in
@@ -304,11 +308,11 @@ let explain trace v pol tp f =
                       let r = ts - Interval.left i in
                       match pol with
                       | SAT -> let expl = once_sat tp (l,r) vars f tp (Pdt.Leaf None) vars_map in
-                               traceln "ONCE_SAT expl = %s" (Expl.to_string expl);
+                               (* traceln "ONCE_SAT expl = %s" (Expl.to_string expl); *)
                                expl
                       | VIO -> let expl = Pdt.uneither (once_vio tp (l,r) vars f tp
                                                           (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
-                               traceln "ONCE_VIO expl = %s" (Expl.to_string expl);
+                               (* traceln "ONCE_VIO expl = %s" (Expl.to_string expl); *)
                                expl)
     | Eventually (i, f) -> (match pol with
                             | SAT -> Pdt.Leaf None
@@ -328,13 +332,13 @@ let explain trace v pol tp f =
                             | SAT -> let expl = Pdt.uneither
                                                   (since_sat (l,r) vars f1 f2 tp
                                                      (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
-                                     traceln "SINCE_SAT expl = %s" (Expl.to_string expl);
+                                     (* traceln "SINCE_SAT expl = %s" (Expl.to_string expl); *)
                                      expl
                             | VIO -> let expl =
                                        Pdt.uneither
                                          (since_vio tp (l,r) vars f1 f2 tp
                                             (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
-                                     traceln "SINCE_VIO expl = %s" (Expl.to_string expl);
+                                     (* traceln "SINCE_VIO expl = %s" (Expl.to_string expl); *)
                                      expl
 
                            )
