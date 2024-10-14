@@ -853,10 +853,14 @@ lift_definition abs_part :: "(event_data set \<times> 'a) list \<Rightarrow> (ev
    \<or> (\<Union>D \<in> set Ds. D) \<noteq> UNIV then [(UNIV, undefined)] else xs"
   by (auto simp: partition_on_def disjoint_def)
 
+fun val_ed where
+  "val_ed [] v = v"
+| "val_ed (a # as) v = val_ed as (v(fst(a) := snd(a)))"
+
 export_code interval enat nat_of_integer integer_of_nat
   STT Formula.TT Inl EInt Formula.Var Leaf set part_hd sum_nat sub_nat subsvals
   check trace_of_list_specialized specialized_set ed_set abs_part 
-  collect_paths_specialized
+  collect_paths_specialized p_check val_ed
   in OCaml module_name Checker file_prefix "checker"
 
 (*<*)
