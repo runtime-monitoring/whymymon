@@ -293,7 +293,7 @@ let explain trace v pol tp f =
        expl
     | Forall (x, tc, f) ->
        let vars_map = Map.add_exn vars_map ~key:x ~data:(Quantifier.Universal, pol) in
-       let expl = eval vars pol tp f vars_map in
+       let expl = eval (vars @ [x]) pol tp f vars_map in
        Pdt.hide_reduce Proof.opt_equal (vars @ [x])
          (fun p_opt -> do_forall_leaf x tc p_opt)
          (fun part -> Proof.Size.minp_list_somes (do_forall_node x tc part)) expl
