@@ -19,7 +19,7 @@ module Plain = struct
     | ExplanationCheck of (timestamp * timepoint) * Expl.t * bool
     | ExplanationLatex of (timestamp * timepoint) * Expl.t * Formula.t
     | ExplanationLight of (timestamp * timepoint) * Expl.t
-    | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_pdt.t * Checker_trace.t
+    | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_proof.t * Checker_trace.t
                                * (Dom.t, Dom.comparator_witness) Setc.t list list option
 
   let print = function
@@ -35,7 +35,7 @@ module Plain = struct
     | ExplanationCheckDebug ((ts, tp), e, b, c_e, c_t, path_opt) ->
        Stdio.printf "%d:%d\nExplanation: \n\n%s\n" ts tp (Expl.to_string e);
        Stdio.printf "\nChecker output: %B\n\n" b;
-       Stdio.printf "\n[debug] Checker explanation:\n%s\n\n" (Checker_interface.Checker_pdt.to_string "" c_e);
+       Stdio.printf "\n[debug] Checker explanation:\n%s\n\n" (Checker_interface.Checker_proof.to_string "" c_e);
        Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_interface.Checker_trace.to_string c_t);
        (match path_opt with
         | None -> ()

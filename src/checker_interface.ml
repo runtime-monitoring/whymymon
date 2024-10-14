@@ -191,6 +191,10 @@ module Checker_interface = struct
   let convert_trace trace_lst =
     trace_of_list_specialized (convert_trace_aux trace_lst)
 
+  let convert_assignment v_alst =
+    List.map v_alst ~f:(fun (s, d) -> (s, to_event_data d))
+
+
 end
 
 module Checker_domain = struct
@@ -248,6 +252,8 @@ module Checker_part = struct
 end
 
 module Checker_proof = struct
+
+  type t = ((string, event_data) sproof, (string, event_data) vproof) sum
 
   let rec sp_at = function
     | STT tp -> tp
@@ -405,32 +411,11 @@ module Checker_trace = struct
 
 end
 
-module Checker_pdt = struct
-
-  type t = (event_data, ((string, event_data) sproof, (string, event_data) vproof) sum, string) pdt
-
-  let rec to_string indent = function
-    | Leaf pt -> Printf.sprintf "%s Leaf (%s)\n%s" indent (Checker_proof.to_string "" pt) indent
-    | Node (x, part) -> Printf.sprintf "%s Node (%s,\n%s)\n" indent x
-                          (Checker_part.to_string "    " to_string (subsvals part))
-
-end
-
-let check trace_lst f expls =
+let check trace_lst v f p =
   let f' = Checker_interface.convert_f f in
   let trace_lst' = Checker_interface.convert_trace_aux trace_lst in
   let trace' = Checker_interface.convert_trace trace_lst in
-  List.rev(List.fold_left expls ~init:[] ~f:(fun acc expl ->
-               let expl' = Checker_interface.convert_expl expl in
-               (check trace' f' expl', expl', trace_lst')::acc))
-
-let false_paths trace_lst f expls =
-  let f' = Checker_interface.convert_f f in
-  let trace' = Checker_interface.convert_trace trace_lst in
-  List.rev(List.fold_left expls ~init:[] ~f:(fun acc expl ->
-               let expl' = Checker_interface.convert_expl expl in
-               let paths = collect_paths_specialized trace' f' expl' in
-               match paths with
-               | None -> None::acc
-               | Some ps -> Some(List.map (Checker_interface.of_poly_set ps) ~f:(fun l ->
-                                     List.map l ~f:(fun l' -> Checker_interface.of_fset l')))::acc))
+  let v' = ed_valuation (Checker_interface.convert_assignment (Assignment.to_alist v))
+             (fun x -> raise (Failure "used undefined valuation for closed formula")) in
+  let p' = Checker_interface.convert_p p in
+  (p_check_specialized trace' v' f' p', p', trace_lst')

@@ -15,4 +15,6 @@ val init: unit -> t
 
 val add: t -> string -> Dom.t -> t
 
+val to_alist: ?key_order:[ `Decreasing | `Increasing ] -> t -> (string * Dom.t) list
+
 val to_string: t -> string

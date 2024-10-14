@@ -19,21 +19,13 @@ module Checker_trace : sig
 
 end
 
-module Checker_pdt : sig
+module Checker_proof : sig
 
-  type t = (event_data, ((string, event_data) sproof, (string, event_data) vproof) sum, string) pdt
+  type t = ((string, event_data) sproof, (string, event_data) vproof) sum
 
   val to_string: string -> t -> string
 
 end
 
-val check: (timestamp * (string * Dom.t list, 'a) Base.Set.t) list ->
-           Formula.t ->
-           Expl.Proof.t Expl.Pdt.t list ->
-           (bool * (event_data, ((string, event_data) sproof, (string, event_data) vproof) sum, string) pdt
-            * Checker_trace.t) list
-
-val false_paths: (timestamp * (string * Dom.t list, 'a) Base.Set.t) list ->
-                 Formula.t ->
-                 Expl.Proof.t Expl.Pdt.t list ->
-                 (Dom.t, Dom.comparator_witness) Setc.t list list option list
+val check: (timestamp * (string * Dom.t list, 'a) Base.Set.t) list -> Assignment.t -> Formula.t -> Expl.Proof.t ->
+           bool * ((string, event_data) sproof, (string, event_data) vproof) sum * Checker_trace.t

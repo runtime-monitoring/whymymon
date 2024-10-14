@@ -68,9 +68,16 @@ module Checker : sig
   val sub_nat : nat -> nat -> nat
   val sum_nat : nat -> nat -> nat
   val abs_part : (event_data set * 'a) list -> (event_data, 'a) part
+  val ed_valuation :
+    (string * event_data) list -> (string -> event_data) -> string -> event_data
   val nat_of_integer : Z.t -> nat
   val specialized_set :
     (string * event_data list) list -> (string * event_data list) set
+  val p_check_specialized :
+    (string * event_data list) trace ->
+      (string -> event_data) ->
+        (string, event_data) formula ->
+          ((string, event_data) sproof, (string, event_data) vproof) sum -> bool
   val collect_paths_specialized :
     (string * event_data list) trace ->
       (string, event_data) formula ->
@@ -438,45 +445,6 @@ let rec is_none = function Some x -> false
 
 let rec gamma (Trace_Mapping t) i = fst (trace_mapping_nth t i);;
 
-let rec gen_length n x1 = match n, x1 with n, x :: xs -> gen_length (suc n) xs
-                     | n, [] -> n;;
-
-let rec sorted_wrt p x1 = match p, x1 with p, [] -> true
-                     | p, x :: ys -> list_all (p x) ys && sorted_wrt p ys;;
-
-let rec size_list x = gen_length zero_nat x;;
-
-let rec bulkload
-  vs = Mapping (map (fun n -> (n, nth vs n)) (upt zero_nat (size_list vs)));;
-
-let rec positions _A
-  xa0 x = match xa0, x with [], x -> []
-    | y :: ys, x ->
-        (if eq _A x y then zero_nat :: map suc (positions _A ys x)
-          else map suc (positions _A ys x));;
-
-let rec rep_part (Abs_part x) = x;;
-
-let rec vals x = Set (map snd (rep_part x));;
-
-let rec sup_set _A
-  x0 a = match x0, a with
-    Coset xs, a -> Coset (filter (fun x -> not (member _A x a)) xs)
-    | Set xs, a -> fold (insert _A) xs a;;
-
-let rec sup_seta _A (Set xs) = fold (sup_set _A) xs bot_set;;
-
-let rec vars _C
-  = function Leaf x1 -> bot_set
-    | Node (x21, x22) ->
-        insert _C x21 (sup_seta _C (image (vars _C) (vals x22)));;
-
-let rec distinct_paths _C
-  = function Leaf uu -> true
-    | Node (x, part) ->
-        ball (vals part)
-          (fun e -> not (member _C x (vars _C e)) && distinct_paths _C e);;
-
 let rec less_eq_enat q x1 = match q, x1 with Infinity_enat, Enat n -> false
                        | q, Infinity_enat -> true
                        | Enat m, Enat n -> less_eq_nat m n;;
@@ -510,6 +478,11 @@ let rec mk_values_subset_Compl _A (_B1, _B2, _B3)
       (fun (q, us) ->
         not (eq _A q r) ||
           is_none (check_values _A _B2 vs ts us (Some (fun _ -> None))));;
+
+let rec gen_length n x1 = match n, x1 with n, x :: xs -> gen_length (suc n) xs
+                     | n, [] -> n;;
+
+let rec size_list x = gen_length zero_nat x;;
 
 let rec check_upt_LTP_p
   sigma ia li xs i =
@@ -561,6 +534,12 @@ let rec maxa _A
 let rec finite _A
   = function Coset xs -> (match universe _A with None -> false | Some _ -> true)
     | Set xs -> true;;
+
+let rec positions _A
+  xa0 x = match xa0, x with [], x -> []
+    | y :: ys, x ->
+        (if eq _A x y then zero_nat :: map suc (positions _A ys x)
+          else map suc (positions _A ys x));;
 
 let rec mk_values _A (_B1, _B2, _B3) _C
   = function [] -> insert (equal_list _C) [] bot_set
@@ -632,6 +611,8 @@ let rec eval_trm_set _B vs x1 = match vs, x1 with vs, Var x -> (Var x, vs x)
                           | vs, Const x -> (Const x, insert _B x bot_set);;
 
 let rec eval_trms_set _B vs ts = map (eval_trm_set _B vs) ts;;
+
+let rec rep_part (Abs_part x) = x;;
 
 let rec subsVals xa = Set (rep_part xa);;
 
@@ -1785,6 +1766,47 @@ and s_check_exec (_A1, _A2) (_B1, _B2, _B3, _B4)
     | sigma, vs, TT, SPred (xb, xa, x) -> false
     | sigma, vs, TT, STT x -> true;;
 
+let rec v_check (_A1, _A2) (_B1, _B2, _B3, _B4)
+  sigma v phi vp =
+    v_check_exec (_A1, _A2) (_B1, _B2, _B3, _B4) sigma
+      (fun x -> insert _B3 (v x) bot_set) phi vp;;
+
+let rec s_check (_A1, _A2) (_B1, _B2, _B3, _B4)
+  sigma v phi sp =
+    s_check_exec (_A1, _A2) (_B1, _B2, _B3, _B4) sigma
+      (fun x -> insert _B3 (v x) bot_set) phi sp;;
+
+let rec p_check (_A1, _A2) (_B1, _B2, _B3, _B4)
+  sigma v phi p =
+    (match p with Inl a -> s_check (_A1, _A2) (_B1, _B2, _B3, _B4) sigma v phi a
+      | Inr a -> v_check (_A1, _A2) (_B1, _B2, _B3, _B4) sigma v phi a);;
+
+let rec sorted_wrt p x1 = match p, x1 with p, [] -> true
+                     | p, x :: ys -> list_all (p x) ys && sorted_wrt p ys;;
+
+let rec bulkload
+  vs = Mapping (map (fun n -> (n, nth vs n)) (upt zero_nat (size_list vs)));;
+
+let rec vals x = Set (map snd (rep_part x));;
+
+let rec sup_set _A
+  x0 a = match x0, a with
+    Coset xs, a -> Coset (filter (fun x -> not (member _A x a)) xs)
+    | Set xs, a -> fold (insert _A) xs a;;
+
+let rec sup_seta _A (Set xs) = fold (sup_set _A) xs bot_set;;
+
+let rec vars _C
+  = function Leaf x1 -> bot_set
+    | Node (x21, x22) ->
+        insert _C x21 (sup_seta _C (image (vars _C) (vals x22)));;
+
+let rec distinct_paths _C
+  = function Leaf uu -> true
+    | Node (x, part) ->
+        ball (vals part)
+          (fun e -> not (member _C x (vars _C e)) && distinct_paths _C e);;
+
 let rec p_check_exec (_A1, _A2) (_B1, _B2, _B3, _B4)
   sigma vs phi p =
     (match p
@@ -1864,6 +1886,11 @@ let rec collect_paths_aux (_A1, _A2, _A3, _A4) (_B1, _B2)
                 (image (fun aa -> d :: aa) ds) sigma (fun_upd _B2 vs x d) phi a)
             (Set (subsvals part)));;
 
+let rec ed_valuation
+  x0 v = match x0, v with [], v -> v
+    | a :: asa, v ->
+        ed_valuation asa (fun_upd equal_string8 v (fst a) (snd a));;
+
 let rec collect_paths (_A1, _A2) (_B1, _B2, _B3, _B4)
   sigma phi e =
     (if distinct_paths _A2 e &&
@@ -1887,6 +1914,12 @@ let rec trace_of_list _A xs = Trace_Mapping (trace_mapping_of_list _A xs);;
 let rec nat_of_integer k = Nat (max ord_integer Z.zero k);;
 
 let rec specialized_set x = Set x;;
+
+let rec p_check_specialized
+  x = p_check (universe_string8, equal_string8)
+        (universe_event_data, default_event_data, equal_event_data,
+          linorder_event_data)
+        x;;
 
 let rec collect_paths_specialized
   x = collect_paths (universe_string8, equal_string8)

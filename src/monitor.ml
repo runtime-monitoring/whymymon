@@ -524,8 +524,8 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
         traceln "\n\n";
         match mode with
         | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
-        | Verified -> let (b, _, _) = List.hd_exn (Checker_interface.check (Array.to_list !trace)
-                                                     f [Pdt.unsomes expl]) in
+        | Verified -> let (b, _, _) = Checker_interface.check (Array.to_list !trace) v
+                                        f (Pdt.unleaf (Pdt.unsomes expl)) in
                       Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
         | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
         (* | Debug -> let (b, c_e, c_trace) = List.hd_exn (Checker_interface.check (Array.to_list trace) f [expl]) in *)
