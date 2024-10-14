@@ -205,8 +205,8 @@ let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
      | _ -> raise (Failure "stop: issue with variable ordering")
 
 let explain trace v pol tp f =
-  traceln "assignment: %s" (Assignment.to_string v);
-  traceln "tp = %d" tp;
+  (* traceln "assignment: %s" (Assignment.to_string v); *)
+  (* traceln "tp = %d" tp; *)
   let rec eval vars (pol: Polarity.t) tp (f: Formula.t) vars_map = match f with
     | TT ->
        (match pol with
@@ -243,27 +243,27 @@ let explain trace v pol tp f =
        (* traceln "|maps| = %d" (List.length maps); *)
        let maps' = List.map (List.filter maps ~f:(fun map_opt -> Option.is_some map_opt))
                      ~f:(fun map_opt -> Option.value_exn map_opt) in
-       traceln "maps = %s" (maps_to_string maps');
+       (* traceln "maps = %s" (maps_to_string maps'); *)
        let fvs = Set.of_list (module String) (Pred.Term.fv_list trms_subst) in
        (* traceln "|fvs| = %d" (Set.length fvs); *)
        (* traceln "|vars| = %d" (List.length vars); *)
        let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
        (* traceln "|vars| = %d" (List.length vars); *)
        let expl = Pdt.somes (pdt_of tp r trms_subst vars maps') in
-       traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl);
+       (* traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl); *)
        expl
     | Neg f ->
        let expl = eval vars (Polarity.invert pol) tp f vars_map in
        let expl = Pdt.apply1_reduce Proof.opt_equal vars
                     (fun p_opt -> do_neg p_opt pol) expl in
-       traceln "NEG %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl);
+       (* traceln "NEG %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl); *)
        expl
     | And (f1, f2) ->
        let expl1 = eval vars pol tp f1 vars_map in
        let expl2 = eval vars pol tp f2 vars_map in
        let expl = Pdt.apply2_reduce Proof.opt_equal vars
                     (fun p1_opt p2_opt -> (do_and p1_opt p2_opt pol)) expl1 expl2 in
-       traceln "AND expl = %s" (Expl.to_string expl);
+       (* traceln "AND expl = %s" (Expl.to_string expl); *)
        expl
     | Or (f1, f2) ->
        let expl1 = eval vars pol tp f1 vars_map in
@@ -334,13 +334,13 @@ let explain trace v pol tp f =
                             | SAT -> let expl = Pdt.uneither
                                                   (since_sat (l,r) vars f1 f2 tp
                                                      (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
-                                     traceln "SINCE_SAT expl = %s" (Expl.to_string expl);
+                                     (* traceln "SINCE_SAT expl = %s" (Expl.to_string expl); *)
                                      expl
                             | VIO -> let expl =
                                        Pdt.uneither
                                          (since_vio tp (l,r) vars f1 f2 tp
                                             (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
-                                     traceln "SINCE_VIO (l=%d,r=%d) expl = %s" l r (Expl.to_string expl);
+                                     (* traceln "SINCE_VIO (l=%d,r=%d) expl = %s" l r (Expl.to_string expl); *)
                                      expl
 
                            )
@@ -524,8 +524,9 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
         traceln "\n\n";
         match mode with
         | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
-        (* | Verified -> let (b, _, _) = List.hd_exn (Checker_interface.check (Array.to_list trace) f [expl]) in *)
-        (*               Out.Plain.print (ExplanationCheck ((ts, tp), expl, b)) *)
+        | Verified -> let (b, _, _) = List.hd_exn (Checker_interface.check (Array.to_list !trace)
+                                                     f [Pdt.unsomes expl]) in
+                      Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
         | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
         (* | Debug -> let (b, c_e, c_trace) = List.hd_exn (Checker_interface.check (Array.to_list trace) f [expl]) in *)
         (*            let paths = List.hd_exn (Checker_interface.false_paths (Array.to_list c_trace) f [expl]) in *)
