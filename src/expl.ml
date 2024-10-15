@@ -462,7 +462,7 @@ module Proof = struct
     match p with
     | STT i -> Printf.sprintf "%strue{%d}" indent i
     | SEqConst (tp, x, c) -> Printf.sprintf "%sSEqConst(%d, %s, %s)" indent tp x (Dom.to_string c)
-    | SPred (tp, r, trms) -> Printf.sprintf "%sSPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
+    | SPred (tp, r, trms) -> Printf.sprintf "%sSPred(%d, %s, [%s])" indent tp r (Term.list_to_string trms)
     | SNeg vp -> Printf.sprintf "%sSNeg{%d}\n%s" indent (s_at p) (v_to_string indent' vp)
     | SOrL sp1 -> Printf.sprintf "%sSOrL{%d}\n%s" indent (s_at p) (s_to_string indent' sp1)
     | SOrR sp2 -> Printf.sprintf "%sSOrR{%d}\n%s" indent (s_at p) (s_to_string indent' sp2)
@@ -497,7 +497,7 @@ module Proof = struct
     match p with
     | VFF i -> Printf.sprintf "%sfalse{%d}" indent i
     | VEqConst (tp, x, c) -> Printf.sprintf "%sVEqConst(%d, %s, %s)" indent tp x (Dom.to_string c)
-    | VPred (tp, r, trms) -> Printf.sprintf "%sVPred(%d, %s, %s)" indent tp r (Term.list_to_string trms)
+    | VPred (tp, r, trms) -> Printf.sprintf "%sVPred(%d, %s, [%s])" indent tp r (Term.list_to_string trms)
     | VNeg sp -> Printf.sprintf "%sVNeg{%d}\n%s" indent (v_at p) (s_to_string indent' sp)
     | VOr (vp1, vp2) -> Printf.sprintf "%sVOr{%d}\n%s\n%s" indent (v_at p) (v_to_string indent' vp1) (v_to_string indent' vp2)
     | VAndL vp1 -> Printf.sprintf "%sVAndL{%d}\n%s" indent (v_at p) (v_to_string indent' vp1)
