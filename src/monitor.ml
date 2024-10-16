@@ -249,7 +249,7 @@ let explain trace v pol tp f =
        (* traceln "|vars| = %d" (List.length vars); *)
        let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
        (* traceln "|vars| = %d" (List.length vars); *)
-       let expl = Pdt.somes (pdt_of tp r trms_subst vars maps') in
+       let expl = Pdt.somes (pdt_of tp r trms vars maps') in
        (* traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl); *)
        expl
     | Neg f ->
@@ -520,17 +520,16 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
     let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
     traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
     List.iter assignments ~f:(fun v ->
-        let expl = explain !trace v pol tp f in
-        traceln "\n\n";
+        let prefix = Array.slice !trace 0 (tp+1) in
+        let expl = Pdt.unsomes (explain prefix v pol tp f) in
+        traceln "|prefix| = %d" (Array.length prefix);
         match mode with
         | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
-        | Verified -> let (b, _, _) = Checker_interface.check (Array.to_list !trace) v
-                                        f (Pdt.unleaf (Pdt.unsomes expl)) in
+        | Verified -> let (b, _, _) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
                       Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
         | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
-        (* | Debug -> let (b, c_e, c_trace) = List.hd_exn (Checker_interface.check (Array.to_list trace) f [expl]) in *)
-        (*            let paths = List.hd_exn (Checker_interface.false_paths (Array.to_list c_trace) f [expl]) in *)
-        (*            Out.Plain.print (ExplanationCheckDebug ((ts, tp), expl, b, c_e, c_trace, paths)) *)
+        | Debug -> let (b, c_e, c_trace) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
+                   Out.Plain.print (ExplanationCheckDebug ((ts, tp), expl, b, c_e, c_trace))
         | DebugVis -> ());
     if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
     Fiber.yield ()

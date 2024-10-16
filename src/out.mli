@@ -19,7 +19,6 @@ module Plain : sig
     | ExplanationLatex of (timestamp * timepoint) * Expl.t * Formula.t
     | ExplanationLight of (timestamp * timepoint) * Expl.t
     | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_proof.t * Checker_trace.t
-                               * (Dom.t, Dom.comparator_witness) Setc.t list list option
 
   val print: t -> unit
 
