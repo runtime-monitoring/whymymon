@@ -1104,31 +1104,51 @@ module Pdt = struct
 
 end
 
-type t = Proof.t option Pdt.t
+type t = Proof.t Pdt.t
+type opt_t = Proof.t option Pdt.t
 
 let rec equal expl expl' = match expl, expl' with
-  | Pdt.Leaf l, Pdt.Leaf l' -> Proof.opt_equal l l'
+  | Pdt.Leaf l, Pdt.Leaf l' -> Proof.equal l l'
   | Node (x, part), Node (x', part') -> String.equal x x' && Part.equal part part' equal
+  | _ -> false
+
+let rec opt_equal expl expl' = match expl, expl' with
+  | Pdt.Leaf l, Pdt.Leaf l' -> Proof.opt_equal l l'
+  | Node (x, part), Node (x', part') -> String.equal x x' && Part.equal part part' opt_equal
   | _ -> false
 
 let rec is_violated = function
   | Pdt.Leaf l -> (match l with
+                   | Proof.V _ -> true
+                   | Proof.S _ -> false)
+  | Node (x, part) -> Part.exists part is_violated
+
+let rec opt_is_violated = function
+  | Pdt.Leaf l -> (match l with
                    | Some (Proof.V _) -> true
                    | None -> false)
-  | Node (x, part) -> Part.exists part is_violated
+  | Node (x, part) -> Part.exists part opt_is_violated
 
 let at expl =
   let rec at_rec = function
+    | Pdt.Leaf pt -> Proof.p_at pt
+    | Node (_, part) -> at_rec (Part.hd part) in
+  at_rec  expl
+
+let opt_at expl =
+  let rec opt_at_rec = function
     | Pdt.Leaf pt -> Proof.opt_p_at pt
-    | Node (_, part) -> Part.find_map part (fun expl -> at_rec expl) in
-  Option.value_exn (at_rec  expl)
+    | Node (_, part) -> Part.find_map part (fun expl -> opt_at_rec expl) in
+  Option.value_exn (opt_at_rec  expl)
 
 let rec sort_parts = function
   | Pdt.Leaf pt -> Pdt.Leaf pt
   | Node (x, part) -> Node (x, Part.map (Part.sort part) sort_parts)
 
-let to_string expl = Pdt.to_string Proof.opt_to_string "" expl
+let to_string expl = Pdt.to_string Proof.to_string "" expl
 
-let to_latex fmla expl = Pdt.to_latex (Proof.opt_to_latex "" fmla) "" expl
+let opt_to_string expl = Pdt.to_string Proof.opt_to_string "" expl
 
-let to_light_string expl = Pdt.to_light_string (Proof.opt_to_light "") "" expl
+let to_latex fmla expl = Pdt.to_latex (Proof.to_latex "" fmla) "" expl
+
+let to_light_string expl = Pdt.to_light_string (Proof.to_light "") "" expl

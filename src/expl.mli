@@ -172,7 +172,8 @@ module Pdt : sig
 
 end
 
-type t = Proof.t option Pdt.t
+type t = Proof.t Pdt.t
+type opt_t = Proof.t option Pdt.t
 
 val equal: t -> t -> bool
 val is_violated: t -> bool
@@ -180,5 +181,6 @@ val at: t -> int
 val sort_parts: t -> t
 
 val to_string: t -> string
+val opt_to_string: opt_t -> string
 val to_latex: Formula.t -> t -> string
 val to_light_string: t -> string
