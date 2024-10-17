@@ -853,17 +853,19 @@ lift_definition abs_part :: "(event_data set \<times> 'a) list \<Rightarrow> (ev
    \<or> (\<Union>D \<in> set Ds. D) \<noteq> UNIV then [(UNIV, undefined)] else xs"
   by (auto simp: partition_on_def disjoint_def)
 
-definition map_of_specialized :: "(name \<times> event_data) list \<Rightarrow> name \<rightharpoonup> event_data" where
-  "map_of_specialized = map_of"
+term "map_of"
 
-definition p_check_specialized :: "(name, event_data) trace \<Rightarrow> (name \<Rightarrow> event_data) option \<Rightarrow> (name, event_data) formula \<Rightarrow> (name, event_data) proof \<Rightarrow> bool" where
-  "p_check_specialized \<sigma> v f p = (case v of None \<Rightarrow> p_check \<sigma> (\<lambda>x. undefined) f p
-                                  | Some v \<Rightarrow> p_check \<sigma> v f p)"
+fun ed_valuation :: "(name \<times> event_data) list \<Rightarrow> (name \<Rightarrow> event_data) \<Rightarrow> (name \<Rightarrow> event_data)" where
+  "ed_valuation [] v = v"
+| "ed_valuation (a # as) v = ed_valuation as (v(fst(a) := snd(a)))"
+
+definition p_check_specialized :: "(name, event_data) trace \<Rightarrow> (name \<Rightarrow> event_data) \<Rightarrow> (name, event_data) formula \<Rightarrow> (name, event_data) proof \<Rightarrow> bool" where
+  "p_check_specialized = p_check"
 
 export_code interval enat nat_of_integer integer_of_nat
   STT Formula.TT Inl EInt Formula.Var Leaf set part_hd sum_nat sub_nat subsvals
   check trace_of_list_specialized specialized_set ed_set abs_part 
-  collect_paths_specialized p_check_specialized map_of_specialized
+  collect_paths_specialized p_check_specialized ed_valuation
   in OCaml module_name Checker file_prefix "checker"
 
 (*<*)
