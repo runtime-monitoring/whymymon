@@ -372,7 +372,7 @@ let explain trace v pol tp f =
     if tp < 0 then
       Pdt.apply1_reduce either_v_equal vars
         (function First p -> First p
-                | Second vps -> Either.first (Some (Proof.V (Proof.VOnce (cur_tp, tp-1, vps))))) mexpl
+                | Second vps -> Either.first (Some (Proof.V (Proof.VOnce (cur_tp, tp+1, vps))))) mexpl
     else
       (if r < 0 then
          Pdt.apply1_reduce either_v_equal vars
@@ -383,7 +383,7 @@ let explain trace v pol tp f =
           if ts < l then
             (Pdt.apply1_reduce either_v_equal vars
                (function First p -> First p
-                       | Second vps -> Either.first (Some (Proof.V (Proof.VOnce (cur_tp, tp-1, vps))))) mexpl)
+                       | Second vps -> Either.first (Some (Proof.V (Proof.VOnce (cur_tp, tp+1, vps))))) mexpl)
           else
             (if ts <= r then
                (let expl = eval vars VIO tp f vars_map in
