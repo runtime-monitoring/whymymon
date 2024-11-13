@@ -529,7 +529,7 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
                       Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
         | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
         | Debug -> let (b, c_e, c_trace) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
-                   Out.Plain.print (ExplanationCheckDebug ((ts, tp), expl, b, c_e, c_trace))
+                   Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
         | DebugVis -> ());
     if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
     Fiber.yield ()

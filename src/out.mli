@@ -18,7 +18,8 @@ module Plain : sig
     | ExplanationCheck of (timestamp * timepoint) * Expl.t * bool
     | ExplanationLatex of (timestamp * timepoint) * Expl.t * Formula.t
     | ExplanationLight of (timestamp * timepoint) * Expl.t
-    | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_proof.t * Checker_trace.t
+    | ExplanationCheckDebug of (timestamp * timepoint) * Assignment.t * Expl.t * bool * Checker_proof.t *
+                                 Checker_trace.t
 
   val print: t -> unit
 

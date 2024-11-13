@@ -19,7 +19,8 @@ module Plain = struct
     | ExplanationCheck of (timestamp * timepoint) * Expl.t * bool
     | ExplanationLatex of (timestamp * timepoint) * Expl.t * Formula.t
     | ExplanationLight of (timestamp * timepoint) * Expl.t
-    | ExplanationCheckDebug of (timestamp * timepoint) * Expl.t * bool * Checker_proof.t * Checker_trace.t
+    | ExplanationCheckDebug of (timestamp * timepoint) * Assignment.t * Expl.t * bool * Checker_proof.t *
+                                 Checker_trace.t
 
   let print = function
     | Explanation ((ts, tp), e) ->
@@ -31,8 +32,9 @@ module Plain = struct
        Stdio.printf "%d:%d\nExplanation: \n\n%s\n\n" ts tp (Expl.to_latex f e)
     | ExplanationLight ((ts, tp), e) ->
        Stdio.printf "%d:%d\nExplanation: \n\n%s\n\n" ts tp (Expl.to_light_string e)
-    | ExplanationCheckDebug ((ts, tp), e, b, c_e, c_t) ->
+    | ExplanationCheckDebug ((ts, tp), v, e, b, c_e, c_t) ->
        Stdio.printf "%d:%d\nExplanation: \n\n%s\n" ts tp (Expl.to_string e);
+       Stdio.printf "\n%s\n" (Assignment.to_string v);
        Stdio.printf "\nChecker output: %B\n\n" b;
        Stdio.printf "\n[debug] Checker explanation:\n%s\n\n" (Checker_interface.Checker_proof.to_string "" c_e);
        Stdio.printf "\n[debug] Checker trace:\n%s" (Checker_interface.Checker_trace.to_string c_t);

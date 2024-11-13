@@ -403,11 +403,13 @@ module Checker_trace = struct
   let db_to_string db =
     List.fold db ~init:"" ~f:(fun acc evt -> acc ^ evt_to_string evt ^ "\n")
 
-  let to_string trace_lst = List.fold_left trace_lst ~init:"" ~f:(fun acc (db, ts) ->
-                                acc ^ Printf.sprintf "[debug] TS = %d:\n" (int_of_nat ts) ^
-                                  (match db with
-                                   | Set s -> db_to_string s
-                                   | Coset _ -> raise (Failure "set of dbs should not be converted to coset")) ^ "\n")
+  let to_string trace_lst = String.concat
+                              (List.map trace_lst ~f:(fun (db, ts) ->
+                                   Printf.sprintf "[debug] TS = %d:\n" (int_of_nat ts) ^
+                                     (match db with
+                                      | Set s -> db_to_string s
+                                      | Coset _ -> raise (Failure "set of dbs should not be converted to coset"))
+                                     ^ "\n"))
 
 end
 
