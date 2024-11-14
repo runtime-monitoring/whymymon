@@ -319,9 +319,19 @@ let explain trace v pol tp f =
     | Eventually (i, f) -> (match pol with
                             | SAT -> Pdt.Leaf None
                             | VIO -> Pdt.Leaf None)
-    | Historically (i, f) -> (match pol with
-                              | SAT -> Pdt.Leaf None
-                              | VIO -> Pdt.Leaf None)
+    | Historically (i, f) -> (let ts = fst (Array.get trace tp) in
+                              let l = match Interval.right i with
+                                | None -> 0
+                                | Some b -> ts - b in
+                              let r = ts - Interval.left i in
+                              match pol with
+                              | SAT -> let expl = Pdt.uneither (historically_sat tp (l,r) vars f tp
+                                                                  (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
+                                       (* traceln "HISTORICALLY_SAT expl = %s" (Expl.to_string expl); *)
+                                       expl
+                              | VIO -> let expl = historically_vio tp (l,r) vars f tp (Pdt.Leaf None) vars_map in
+                                       (* traceln "HISTORICALLY_VIO expl = %s" (Expl.to_string expl); *)
+                                       expl)
     | Always (i, f) -> (match pol with
                         | SAT -> Pdt.Leaf None
                         | VIO -> Pdt.Leaf None)
@@ -347,6 +357,59 @@ let explain trace v pol tp f =
     | Until (i, f1, f2) -> (match pol with
                             | SAT -> Pdt.Leaf None
                             | VIO -> Pdt.Leaf None)
+  and historically_sat cur_tp (l,r) vars f tp mexpl vars_map =
+    if tp < 0 then
+      Pdt.apply1_reduce either_s_equal vars
+        (function First p -> First p
+                | Second sps -> Either.first (Some (Proof.S (Proof.SHistorically (cur_tp, tp+1, sps))))) mexpl
+    else
+      (if r < 0 then
+         Pdt.apply1_reduce either_s_equal vars
+           (function First p -> First p
+                   | Second _ -> Either.first (Some (Proof.S (SHistoricallyOut cur_tp)))) mexpl
+       else
+         (let ts = fst (Array.get trace tp) in
+          if ts < l then
+            (Pdt.apply1_reduce either_s_equal vars
+               (function First p -> First p
+                       | Second sps -> Either.first (Some (Proof.S (Proof.SHistorically (cur_tp, tp+1, sps))))) mexpl)
+          else
+            (if ts <= r then
+               (let expl = eval vars SAT tp f vars_map in
+                let mexpl = Pdt.apply2_reduce either_s_equal vars
+                              (fun sp_opt p_sps ->
+                                match p_sps with
+                                | First p -> First p
+                                | Second sps ->
+                                   (match sp_opt with
+                                    | None -> Either.first None
+                                    | Some (Proof.S sp) -> Either.second (Fdeque.enqueue_front sps sp)
+                                    | _ -> raise (Invalid_argument "found V proof in S case")))
+                              expl mexpl in
+                if stop_either vars vars_map mexpl SAT then mexpl
+                else historically_sat cur_tp (l,r) vars f (tp-1) mexpl vars_map)
+             else historically_sat cur_tp (l,r) vars f (tp-1) mexpl vars_map)))
+  and historically_vio cur_tp (l,r) vars f tp mexpl vars_map =
+    if tp < 0 || r < 0 then
+      Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
+    else
+      (let ts = fst (Array.get trace tp) in
+       if ts < l then
+         Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
+       else
+         (if ts <= r then
+            (let expl = eval vars VIO tp f vars_map in
+             let mexpl = Pdt.apply2_reduce Proof.opt_equal vars
+                           (fun sp_opt p_opt ->
+                             match p_opt with
+                             | None -> (match sp_opt with
+                                        | None -> None
+                                        | Some (Proof.V vp) -> Some (Proof.V (VHistorically (cur_tp, vp)))
+                                        | _ -> raise (Invalid_argument "found S proof in V case"))
+                             | Some p -> Some p) expl mexpl in
+             if stop vars vars_map mexpl VIO then mexpl
+             else historically_vio cur_tp (l,r) vars f (tp-1) mexpl vars_map)
+          else historically_vio cur_tp (l,r) vars f (tp-1) mexpl vars_map))
   and once_sat cur_tp (l,r) vars f tp mexpl vars_map =
     if tp < 0 || r < 0 then
       Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
