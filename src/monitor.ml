@@ -125,6 +125,34 @@ let maps_to_string maps =
                                            List.map (Map.to_alist map) ~f:(fun (k, v) ->
                                                Printf.sprintf "%s -> %s\n" k (Dom.to_string v)))))
 
+let do_prev i (p_opt: Proof.t option) ts ts' (pol: Polarity.t) =
+  Proof.Size.minp_list
+    (match p_opt, pol with
+     | Some (S sp), SAT -> if Interval.mem (ts' - ts) i then
+                             [Proof.S (SPrev sp)]
+                           else []
+     | Some (V vp), VIO -> if Interval.below (ts' - ts) i then
+                             [Proof.V (VPrevOutL ((Proof.v_at vp)+1))]
+                           else
+                             (if (Interval.above (ts' - ts) i) then
+                                [Proof.V (VPrevOutR ((Proof.v_at vp)+1))]
+                              else [V (VPrev vp)])
+     | _ -> [])
+
+let do_next i (p_opt: Proof.t option) ts ts' (pol: Polarity.t) =
+  Proof.Size.minp_list
+    (match p_opt, pol with
+     | Some (S sp), SAT -> if Interval.mem (ts' - ts) i then
+                             [S (SNext sp)]
+                           else []
+     | Some (V vp), VIO -> if Interval.below (ts' - ts) i then
+                             [V (VNextOutL ((Proof.v_at vp)-1))]
+                           else
+                             (if (Interval.above (ts' - ts) i) then
+                                [V (VNextOutR ((Proof.v_at vp)-1))]
+                              else [V (VNext vp)])
+     | _ -> [])
+
 let rec match_terms trms ds map =
   match trms, ds with
   | [], [] -> Some(map)
@@ -297,12 +325,25 @@ let explain trace v pol tp f =
        Pdt.hide_reduce Proof.opt_equal (vars @ [x])
          (fun p_opt -> do_forall_leaf x tc p_opt)
          (fun part -> Proof.Size.minp_list_somes (do_forall_node x tc part)) expl
-    | Prev (i, f) -> (match pol with
-                      | SAT -> Pdt.Leaf None
-                      | VIO -> Pdt.Leaf None)
-    | Next (i, f) -> (match pol with
-                      | SAT -> Pdt.Leaf None
-                      | VIO -> Pdt.Leaf None)
+    | Prev (i, f) ->
+       if Int.equal tp 0 then
+         (match pol with
+          | SAT -> Pdt.Leaf None
+          | VIO -> Pdt.Leaf (Some (V VPrev0)))
+       else
+         (let expl = eval vars pol tp f vars_map in
+          let ts = fst (Array.get trace tp) in
+          let ts' = fst (Array.get trace (tp-1)) in
+          let expl = Pdt.apply1_reduce Proof.opt_equal vars
+                       (fun p_opt -> do_prev i p_opt ts ts' pol) expl in
+          expl)
+    | Next (i, f) ->
+       let expl = eval vars pol tp f vars_map in
+       let ts = fst (Array.get trace tp) in
+       let ts' = fst (Array.get trace (tp+1)) in
+       let expl = Pdt.apply1_reduce Proof.opt_equal vars
+                    (fun p_opt -> do_next i p_opt ts ts' pol) expl in
+       expl
     | Once (i, f) -> (let ts = fst (Array.get trace tp) in
                       let l = match Interval.right i with
                         | None -> 0
