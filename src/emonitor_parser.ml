@@ -80,6 +80,7 @@ module Monpoly = struct
       match pb.token with
       | LPA -> Parsebuf.next pb; parse_tuple ()
       | RPA -> parse_tuple_cont (Queue.create ())
+      | TRUE -> Processed pb
       | STR s -> Parsebuf.next pb;
                  parse_tuple_cont (Queue.of_list [s])
       | t -> Error (pb, "expected a tuple or ')' but found " ^ string_of_token t)

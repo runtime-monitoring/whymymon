@@ -13,10 +13,12 @@ open Base
 let to_tpts_assignments (mon: Argument.Monitor.t) vars line =
   match mon with
   | MonPoly -> let (tp, ts, sss) = Emonitor_parser.Monpoly.parse line in
-               (tp, ts, List.map sss ~f:(fun ss ->
-                            List.fold2_exn vars ss ~init:(Assignment.init ())
-                              ~f:(fun v x s -> let d = Dom.string_to_t s (Pred.Sig.var_tt x) in
-                                               Assignment.add v x d)))
+               if List.is_empty sss then (tp, ts, [Assignment.init ()])
+               else
+                 (tp, ts, List.map sss ~f:(fun ss ->
+                              List.fold2_exn vars ss ~init:(Assignment.init ())
+                                ~f:(fun v x s -> let d = Dom.string_to_t s (Pred.Sig.var_tt x) in
+                                                 Assignment.add v x d)))
   | VeriMon -> failwith "missing"
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"
