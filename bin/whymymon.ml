@@ -18,7 +18,7 @@ module WhyMyMon = struct
 
   let mon_path_ref = ref ""
   let sig_path_ref = ref ""
-  let formula_path_ref = ref ""
+  let formula_file_ref = ref ""
 
   let mon_ref = ref Argument.Monitor.MonPoly
   let pref_ref = ref Argument.Preference.Violation
@@ -80,7 +80,9 @@ module WhyMyMon = struct
          process_args_rec args
       | ("-formula" :: f :: args) ->
          nec_arg_count := !nec_arg_count + 1;
-         formula_path_ref := f;
+         formula_file_ref := (match (String.rindex f '/') with
+                              | None -> f
+                              | Some ri -> String.suffix f ((String.length f) - ri - 1));
          In_channel.with_file f ~f:(fun inc ->
              let lexbuf = Lexing.from_channel inc in
              formula_ref := try Some(Formula_parser.formula Formula_lexer.token lexbuf)
@@ -104,7 +106,8 @@ module WhyMyMon = struct
       let extra_args = Argument.Monitor.extra_args !pref_ref !mon_ref in
       match !mon_ref with
       | MonPoly -> let _ = Monitor.exec !mon_ref ~mon_path:!mon_path_ref ~sig_path:!sig_path_ref
-                             !stream_ref (Option.value_exn !formula_ref) !pref_ref !mode_ref extra_args in ()
+                             ~formula_file:!formula_file_ref !stream_ref (Option.value_exn !formula_ref)
+                             !pref_ref !mode_ref extra_args in ()
       | _ -> failwith "not yet"
     with End_of_file -> exit 0
 

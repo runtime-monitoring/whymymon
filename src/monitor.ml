@@ -864,11 +864,11 @@ let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream trace =
   step None
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
-let exec mon ~mon_path ?sig_path stream f pref mode extra_args =
+let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
                   (* Formula conversion *)
-                  let f_path = Eio.Stdenv.cwd env / "tmp/f.mfotl" in
+                  let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file ^ ".mfotl") in
                   traceln "Saving formula in %a" Eio.Path.pp f_path;
                   Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
                   (* Instantiate process/domain managers *)
