@@ -44,16 +44,16 @@ module Monitor = struct
     | TimelyMon -> "TimelyMon"
 
   let exec_path = function
-    | MonPoly -> "_build/default/third-party/monpoly/src/main.exe"
-    | VeriMon -> failwith "not yet"
+    | MonPoly
+      | VeriMon -> "_build/default/third-party/monpoly/src/main.exe"
     | DejaVu -> failwith "not yet"
     | TimelyMon -> failwith "not yet"
 
   let extra_args (pref: Preference.t) = function
-    | MonPoly -> (match pref with
-                  | Satisfaction -> []
-                  | Violation -> ["-negate"])
-    | VeriMon -> failwith "not yet"
+    | MonPoly
+      | VeriMon -> (match pref with
+                    | Satisfaction -> []
+                    | Violation -> ["-negate"])
     | DejaVu -> failwith "not yet"
     | TimelyMon -> failwith "not yet"
 

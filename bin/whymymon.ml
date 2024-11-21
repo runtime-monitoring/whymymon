@@ -105,9 +105,10 @@ module WhyMyMon = struct
       process_args (List.tl_exn (Array.to_list Sys.argv));
       let extra_args = Argument.Monitor.extra_args !pref_ref !mon_ref in
       match !mon_ref with
-      | MonPoly -> let _ = Monitor.exec !mon_ref ~mon_path:!mon_path_ref ~sig_path:!sig_path_ref
-                             ~formula_file:!formula_file_ref !stream_ref (Option.value_exn !formula_ref)
-                             !pref_ref !mode_ref extra_args in ()
+      | MonPoly
+        | VeriMon -> let _ = Monitor.exec !mon_ref ~mon_path:!mon_path_ref ~sig_path:!sig_path_ref
+                               ~formula_file:!formula_file_ref !stream_ref (Option.value_exn !formula_ref)
+                               !pref_ref !mode_ref extra_args in ()
       | _ -> failwith "not yet"
     with End_of_file -> exit 0
 
