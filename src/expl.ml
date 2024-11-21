@@ -1089,6 +1089,13 @@ module Pdt = struct
     | Leaf (Some l) -> Leaf l
     | Node (x, part) -> Node (x, Part.map part (fun expl -> unsomes expl))
 
+  let rec somes_pol pol = function
+    | Leaf l -> (match l, pol with
+                 | Proof.S _, Polarity.SAT
+                   | V _, VIO -> Leaf (Some l)
+                 | _ -> Leaf None)
+    | Node (x, part) -> Node (x, Part.map part (fun expl -> somes expl))
+
   let rec uneither = function
     | Leaf (Either.First l) -> Leaf l
     | Leaf (Either.Second _) -> Leaf None

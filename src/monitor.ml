@@ -13,24 +13,6 @@ open Expl
 open Pred
 open Eio.Std
 
-module Polarity = struct
-
-  type t = SAT | VIO
-
-  let invert = function
-    | SAT -> VIO
-    | VIO -> SAT
-
-  let of_pref = function
-    | Argument.Preference.Satisfaction -> SAT
-    | Violation -> VIO
-
-  let to_string = function
-    | SAT -> "SAT"
-    | VIO -> "VIO"
-
-end
-
 module Quantifier = struct
 
   type t = Existential | Universal
@@ -277,8 +259,10 @@ let explain trace v pol tp f =
        (* traceln "|vars| = %d" (List.length vars); *)
        let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
        (* traceln "|vars| = %d" (List.length vars); *)
-       let expl = Pdt.somes (pdt_of tp r trms vars maps') in
-       (* traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl); *)
+       let expl = Pdt.somes_pol pol (pdt_of tp r trms vars maps') in
+       traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.opt_to_string expl);
+       (* match expl with *)
+       (* | S  *)
        expl
     | Neg f ->
        let expl = eval vars (Polarity.invert pol) tp f vars_map in
@@ -418,6 +402,7 @@ let explain trace v pol tp f =
                             let r = match Interval.right i with
                               | None -> raise (Failure "unbounded until")
                               | Some b -> ts + b in
+                            traceln "until (l,r) = (%d, %d)" l r;
                             match pol with
                             | SAT -> let expl = Pdt.uneither
                                                   (until_sat (l,r) vars f1 f2 tp
@@ -777,10 +762,13 @@ let explain trace v pol tp f =
           else until_sat (l,r) vars f1 f2 (tp+1) mexpl vars_map))
   and until_vio cur_tp (l,r) vars f1 f2 tp mexpl vars_map =
     let ts = fst (Array.get trace tp) in
+    traceln "tp = %d\n" tp;
+    traceln "ts = %d\n" ts;
     if ts > r then
       Pdt.apply1_reduce either_v_equal vars
         (function First p -> First p
-                | Second vp2s -> Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
+                | Second vp2s -> traceln "creating correct proof";
+                                 Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
     else
       (if ts >= l && ts <= r then
          (let expl1 = eval vars VIO tp f1 vars_map in
@@ -791,16 +779,37 @@ let explain trace v pol tp f =
                           | First p -> First p
                           | Second vp2s ->
                              (match vp1_opt, vp2_opt with
-                              | None, Some (Proof.V vp2) ->
-                                 (* Found only beta violation within the interval *)
-                                 Either.second (Fdeque.enqueue_back vp2s vp2)
-                              | Some (Proof.V vp1), Some (Proof.V vp2) ->
-                                 (* Found alpha and beta violation within the interval *)
-                                 Either.first
-                                   (Some (Proof.V (VUntil (cur_tp, vp1, Fdeque.enqueue_back vp2s vp2))))
-                              | _ -> (* traceln "p1 = %s\n" (Proof.to_string "" p1); *)
-                                 (* traceln "p2 = %s\n" (Proof.to_string "" p2); *)
-                                 Either.first None)) expl1 expl2 mexpl in
+                              | None, None -> traceln "mexpl 1";
+                                              Either.first None
+                              | None, Some p -> traceln "mexpl 2";
+                                                traceln "proof: %s" (Proof.to_string "" p);
+                                                Either.second (Fdeque.enqueue_back vp2s (Proof.unV p))
+                              | Some p, None -> traceln "mexpl 3";
+                                                traceln "proof: %s" (Proof.to_string "" p);
+                                                Either.first None
+                              | Some p1, Some p2 -> traceln "mexpl 4";
+                                                    traceln "proof1: %s" (Proof.to_string "" p1);
+                                                    traceln "proof2: %s" (Proof.to_string "" p2);
+                                                    Either.first
+                                                      (Some (Proof.V (VUntil (cur_tp, (Proof.unV p1),
+                                                                              Fdeque.enqueue_back vp2s (Proof.unV p2)))))
+
+
+
+                              (* | None, Some (Proof.V vp2) -> *)
+                              (*    (\* Found only beta violation within the interval *\) *)
+                              (*    traceln "mexpl 1"; *)
+                              (*    Either.second (Fdeque.enqueue_back vp2s vp2) *)
+                              (* | Some (Proof.V vp1), Some (Proof.V vp2) -> *)
+                              (*    (\* Found alpha and beta violation within the interval *\) *)
+                              (*    traceln "mexpl 2"; *)
+                              (*    Either.first *)
+                              (*      (Some (Proof.V (VUntil (cur_tp, vp1, Fdeque.enqueue_back vp2s vp2)))) *)
+                              (* | Some _, None -> traceln "mexpl 3"; Either.first None *)
+                              (* | None, None -> (\* traceln "p1 = %s\n" (Proof.to_string "" p1); *\) *)
+                              (*    (\* traceln "p2 = %s\n" (Proof.to_string "" p2); *\) *)
+                              (*    traceln "mexpl 4"; *)
+                              (*    Either.first None *))) expl1 expl2 mexpl in
           if stop_either vars vars_map mexpl VIO then mexpl
           else until_vio cur_tp (l,r) vars f1 f2 (tp+1) mexpl vars_map)
        else
@@ -832,17 +841,20 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
     let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
     traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
     List.iter assignments ~f:(fun v ->
-        let prefix = Array.slice !trace 0 (tp+1) in
-        let expl = Pdt.unsomes (explain prefix v pol tp f) in
-        traceln "|prefix| = %d" (Array.length prefix);
-        match mode with
-        | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
-        | Verified -> let (b, _, _) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
-                      Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
-        | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
-        | Debug -> let (b, c_e, c_trace) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
-                   Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
-        | DebugVis -> ());
+      Stdio.printf "expl = %s\n" (Expl.opt_to_string (explain !trace v pol tp f));
+      let expl = Pdt.unsomes (explain !trace v pol tp f) in
+      match mode with
+      | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
+      | Verified -> let prefix = Array.slice !trace 0 (tp+1) in
+                    traceln "|prefix| = %d" (Array.length prefix);
+                    let (b, _, _) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
+                    Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
+      | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
+      | Debug -> let prefix = Array.slice !trace 0 (tp+1) in
+                 traceln "|prefix| = %d" (Array.length prefix);
+                 let (b, c_e, c_trace) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
+                 Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
+      | DebugVis -> ());
     if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
     Fiber.yield ()
   done
@@ -867,39 +879,39 @@ let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream trace =
 let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
-                  (* Formula conversion *)
-                  let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file ^ ".mfotl") in
-                  traceln "Saving formula in %a" Eio.Path.pp f_path;
-                  Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
-                  (* Instantiate process/domain managers *)
-                  let proc_mgr = Eio.Stdenv.process_mgr env in
-                  let domain_mgr = Eio.Stdenv.domain_mgr env in
-                  Switch.run (fun sw ->
-                      (* source and sink of emonitor's stdin *)
-                      let w_source, w_sink = Eio.Process.pipe ~sw proc_mgr in
-                      (* source and sink of emonitor's stdout *)
-                      let r_source, r_sink = Eio.Process.pipe ~sw proc_mgr in
-                      (* signals end of stream *)
-                      let end_of_stream = ref false in
-                      (* accumulated trace ref *)
-                      let trace = ref [||]  in
-                      try
-                        Fiber.all
-                          [ (* Spawn thread with external monitor process *)
-                            (fun () ->
-                              let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
-                              let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
-                              traceln "Running process with: %s" (Etc.string_list_to_string ~sep:", " args);
-                              let status = Eio.Process.spawn ~sw ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
-                                             proc_mgr (args @ extra_args) |> Eio.Process.await in
-                              match status with
-                              | `Exited i -> traceln "Process exited with: %d" i
-                              | `Signaled i -> traceln "Process signaled with: %d" i);
-                            (* External monitor I/O management *)
-                            (fun () -> traceln "Writing lines to emonitor's stdin...";
-                                       write_lines mon stream w_sink end_of_stream trace);
-                            (fun () -> traceln "Reading lines from emonitor's stdout...";
-                                       read ~domain_mgr r_source r_sink end_of_stream mon f trace (Polarity.of_pref pref) mode)
-                          ];
-                      with Exit -> Stdio.printf "Reached the end of the log file.\n"
-                    );
+    (* Formula conversion *)
+    let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file ^ ".mfotl") in
+    traceln "Saving formula in %a" Eio.Path.pp f_path;
+    Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
+    (* Instantiate process/domain managers *)
+    let proc_mgr = Eio.Stdenv.process_mgr env in
+    let domain_mgr = Eio.Stdenv.domain_mgr env in
+    Switch.run (fun sw ->
+        (* source and sink of emonitor's stdin *)
+        let w_source, w_sink = Eio.Process.pipe ~sw proc_mgr in
+        (* source and sink of emonitor's stdout *)
+        let r_source, r_sink = Eio.Process.pipe ~sw proc_mgr in
+        (* signals end of stream *)
+        let end_of_stream = ref false in
+        (* accumulated trace ref *)
+        let trace = ref [||]  in
+        try
+          Fiber.all
+            [ (* Spawn thread with external monitor process *)
+              (fun () ->
+                let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
+                let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
+                traceln "Running process with: %s" (Etc.string_list_to_string ~sep:", " args);
+                let status = Eio.Process.spawn ~sw ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
+                               proc_mgr (args @ extra_args) |> Eio.Process.await in
+                match status with
+                | `Exited i -> traceln "Process exited with: %d" i
+                | `Signaled i -> traceln "Process signaled with: %d" i);
+              (* External monitor I/O management *)
+              (fun () -> traceln "Writing lines to emonitor's stdin...";
+                         write_lines mon stream w_sink end_of_stream trace);
+              (fun () -> traceln "Reading lines from emonitor's stdout...";
+                         read ~domain_mgr r_source r_sink end_of_stream mon f trace (Polarity.of_pref pref) mode)
+            ];
+        with Exit -> Stdio.printf "Reached the end of the log file.\n"
+      );

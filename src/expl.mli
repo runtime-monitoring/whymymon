@@ -166,6 +166,7 @@ module Pdt : sig
   val split_list_reduce: ('a -> 'a -> bool) -> 'a list t -> 'a t list
   val hide_reduce: ('a -> 'a -> bool) -> string list -> ('b -> 'a) -> ('b Part.t -> 'a) -> 'b t -> 'a t
   val somes: 'a t -> 'a option t
+  val somes_pol: Polarity.t -> Proof.t t -> Proof.t option t
   val unsomes: 'a option t -> 'a t
   val uneither: ('a option, 'b) Either.t t -> 'a option t
   val prune_nones: 'a option t -> 'a t option
