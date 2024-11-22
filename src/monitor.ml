@@ -260,7 +260,7 @@ let explain trace v pol tp f =
        let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
        (* traceln "|vars| = %d" (List.length vars); *)
        let expl = Pdt.somes_pol pol (pdt_of tp r trms vars maps') in
-       traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.opt_to_string expl);
+       (* traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.opt_to_string expl); *)
        (* match expl with *)
        (* | S  *)
        expl
@@ -402,7 +402,7 @@ let explain trace v pol tp f =
                             let r = match Interval.right i with
                               | None -> raise (Failure "unbounded until")
                               | Some b -> ts + b in
-                            traceln "until (l,r) = (%d, %d)" l r;
+                            (* traceln "until (l,r) = (%d, %d)" l r; *)
                             match pol with
                             | SAT -> let expl = Pdt.uneither
                                                   (until_sat (l,r) vars f1 f2 tp
@@ -762,13 +762,12 @@ let explain trace v pol tp f =
           else until_sat (l,r) vars f1 f2 (tp+1) mexpl vars_map))
   and until_vio cur_tp (l,r) vars f1 f2 tp mexpl vars_map =
     let ts = fst (Array.get trace tp) in
-    traceln "tp = %d\n" tp;
-    traceln "ts = %d\n" ts;
+    (* traceln "tp = %d\n" tp; *)
+    (* traceln "ts = %d\n" ts; *)
     if ts > r then
       Pdt.apply1_reduce either_v_equal vars
         (function First p -> First p
-                | Second vp2s -> traceln "creating correct proof";
-                                 Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
+                | Second vp2s -> Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
     else
       (if ts >= l && ts <= r then
          (let expl1 = eval vars VIO tp f1 vars_map in
@@ -779,17 +778,17 @@ let explain trace v pol tp f =
                           | First p -> First p
                           | Second vp2s ->
                              (match vp1_opt, vp2_opt with
-                              | None, None -> traceln "mexpl 1";
+                              | None, None -> (* traceln "mexpl 1"; *)
                                               Either.first None
-                              | None, Some p -> traceln "mexpl 2";
-                                                traceln "proof: %s" (Proof.to_string "" p);
+                              | None, Some p -> (* traceln "mexpl 2"; *)
+                                                (* traceln "proof: %s" (Proof.to_string "" p); *)
                                                 Either.second (Fdeque.enqueue_back vp2s (Proof.unV p))
-                              | Some p, None -> traceln "mexpl 3";
-                                                traceln "proof: %s" (Proof.to_string "" p);
+                              | Some p, None -> (* traceln "mexpl 3"; *)
+                                                (* traceln "proof: %s" (Proof.to_string "" p); *)
                                                 Either.first None
-                              | Some p1, Some p2 -> traceln "mexpl 4";
-                                                    traceln "proof1: %s" (Proof.to_string "" p1);
-                                                    traceln "proof2: %s" (Proof.to_string "" p2);
+                              | Some p1, Some p2 -> (* traceln "mexpl 4"; *)
+                                                    (* traceln "proof1: %s" (Proof.to_string "" p1); *)
+                                                    (* traceln "proof2: %s" (Proof.to_string "" p2); *)
                                                     Either.first
                                                       (Some (Proof.V (VUntil (cur_tp, (Proof.unV p1),
                                                                               Fdeque.enqueue_back vp2s (Proof.unV p2)))))
@@ -841,17 +840,16 @@ let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
     let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
     traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
     List.iter assignments ~f:(fun v ->
-      Stdio.printf "expl = %s\n" (Expl.opt_to_string (explain !trace v pol tp f));
       let expl = Pdt.unsomes (explain !trace v pol tp f) in
       match mode with
       | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
-      | Verified -> let prefix = Array.slice !trace 0 (tp+1) in
-                    traceln "|prefix| = %d" (Array.length prefix);
+      | Verified -> let prefix = Array.slice !trace 0 (tp+1) in (* tp+2 *)
+                    (* traceln "|prefix| = %d" (Array.length prefix); *)
                     let (b, _, _) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
                     Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
       | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
-      | Debug -> let prefix = Array.slice !trace 0 (tp+1) in
-                 traceln "|prefix| = %d" (Array.length prefix);
+      | Debug -> let prefix = Array.slice !trace 0 (tp+1) in (* tp+2 *)
+                 (* traceln "|prefix| = %d" (Array.length prefix); *)
                  let (b, c_e, c_trace) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
                  Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
       | DebugVis -> ());
@@ -880,7 +878,7 @@ let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
     (* Formula conversion *)
-    let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file ^ ".mfotl") in
+    let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file) in
     traceln "Saving formula in %a" Eio.Path.pp f_path;
     Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
     (* Instantiate process/domain managers *)

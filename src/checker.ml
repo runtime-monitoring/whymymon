@@ -618,6 +618,8 @@ let rec subsVals xa = Set (rep_part xa);;
 
 let rec part_hd xa = snd (hd (rep_part xa));;
 
+let int_of_nat n = Z.to_int (integer_of_nat n);;
+
 let rec v_at = function VFF i -> i
                | VPred (i, vk, vl) -> i
                | VEq_Const (i, vm, vn) -> i
@@ -701,15 +703,22 @@ let rec v_check_exec (_A1, _A2) (_B1, _B2, _B3, _B4)
                         psi)
                       vp2s))))
         | VUntilInf (ia, hi, vp2s) ->
-          (match right i
+           (match right i
             with Enat b ->
-              less_eq_nat (minus_nat (tau sigma hi) (tau sigma ia)) b &&
-                less_nat b (minus_nat (tau sigma (suc hi)) (tau sigma ia))
+                  let b1 = less_eq_nat (minus_nat (tau sigma hi) (tau sigma ia)) b in
+                  let b2 = less_nat b (minus_nat (tau sigma (suc hi)) (tau sigma ia)) in
+                  Printf.printf "b = %d; res = %d; op1 = %d; op2 = %d\n" (int_of_nat b)
+                    (int_of_nat (minus_nat (tau sigma (suc hi)) (tau sigma ia)))
+                    (int_of_nat (tau sigma (suc hi))) (int_of_nat (tau sigma ia));
+                  Printf.printf "b1 = %B; b2 = %B\n" b1 b2;
+                  b1 && b2
+
             | Infinity_enat -> false) &&
-            (check_upt_ETP_f sigma i ia (map v_at vp2s) hi &&
-              list_all
-                (v_check_exec (_A1, _A2) (_B1, _B2, _B3, _B4) sigma vs psi)
-                vp2s))
+             (let b3 = check_upt_ETP_f sigma i ia (map v_at vp2s) hi in
+              let b4 =  list_all
+                          (v_check_exec (_A1, _A2) (_B1, _B2, _B3, _B4) sigma vs psi) vp2s in
+                          Printf.printf "b3 = %B; b4 = %B\n" b3 b4;
+                b3 && b4))
     | sigma, vs, Eventually (i, phi), vp ->
         (match vp with VFF _ -> false | VPred (_, _, _) -> false
           | VEq_Const (_, _, _) -> false | VNeg _ -> false | VOr (_, _) -> false
