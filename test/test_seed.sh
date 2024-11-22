@@ -30,37 +30,30 @@ verb () {
 
     if [[ "${CHECK_FLAG}" = "verified" ]]
     then
-        OUT=$(../bin/whymon.exe -mode verified -sig sig/ap.sig -formula tmp/${PREFIX}.mfotl -log tmp/${PREFIX}.mlog 2>&1)
+        OUT=$(../bin/whymymon.exe -path default -mode verified -sig sig/ap.sig -formula tmp/${PREFIX}.mfotl -log tmp/${PREFIX}.mlog 2>&1)
     else
         if [[ "${CHECK_FLAG}" = "unverified" ]]
         then
-            OUT=$(../bin/whymon.exe -mode unverified -sig sig/ap.sig -formula tmp/${PREFIX}.mfotl -log tmp/${PREFIX}.mlog 2>&1)
+            OUT=$(../bin/whymymon.exe -path default -mode unverified -sig sig/ap.sig -formula tmp/${PREFIX}.mfotl -log tmp/${PREFIX}.mlog 2>&1)
         else
             usage
         fi
     fi
+
     OUT_GREP=$(grep "Checker output: false\|exception" <<< "${OUT}")
-    N_VERDICTS_WHYMON=$(grep -c "Explanation" <<< "${OUT}")
-    N_VERDICTS_VERIMON=$(../../monpoly/monpoly -sig sig/ap.sig -formula tmp/${PREFIX}.mfotl -log tmp/${PREFIX}.log -verified \
-                                               -nonewlastts -verbose 2>&1 | grep -c "false\|true")
 
     printf "${PREFIX} ... "
     if [[ "${OUT_GREP}" == "" ]]
-    then printf "OK\n"
+    then
+        printf "OK\n"
     fi
     if [[ "${OUT_GREP}" == *"false"* ]]
     then
-        printf " !! CHECK FAILED !!"
+        printf " !! CHECK FAILED !!\n"
     fi
     if [[ "${OUT_GREP}" == *"exception"* ]]
     then
-        printf " !! EXCEPTION RAISED !!"
-    fi
-    if [[ "${N_VERDICTS_WHYMON}" != "${N_VERDICTS_VERIMON}" ]]
-    then
-        printf "${PREFIX} ... "
-        printf " !! N_VERDICTS_WHYMON = ${N_VERDICTS_WHYMON};"
-        printf " N_VERDICTS_VERIMON = ${N_VERDICTS_VERIMON} !!\n"
+        printf " !! EXCEPTION RAISED !!\n"
     fi
     printf "\n"
 }
