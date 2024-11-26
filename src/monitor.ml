@@ -260,7 +260,7 @@ let explain trace v pol tp f =
        let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
        (* traceln "|vars| = %d" (List.length vars); *)
        let expl = Pdt.somes_pol pol (pdt_of tp r trms vars maps') in
-       traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.opt_to_string expl);
+       (* traceln "PREDICATE %s expl = %s" (Polarity.to_string pol) (Expl.opt_to_string expl); *)
        (* match expl with *)
        (* | S  *)
        expl
@@ -402,7 +402,7 @@ let explain trace v pol tp f =
                             let r = match Interval.right i with
                               | None -> raise (Failure "unbounded until")
                               | Some b -> ts + b in
-                            traceln "until (l,r) = (%d, %d)" l r;
+                            (* traceln "until (l,r) = (%d, %d)" l r; *)
                             match pol with
                             | SAT -> let expl = Pdt.uneither
                                                   (until_sat (l,r) vars f1 f2 tp
@@ -762,13 +762,12 @@ let explain trace v pol tp f =
           else until_sat (l,r) vars f1 f2 (tp+1) mexpl vars_map))
   and until_vio cur_tp (l,r) vars f1 f2 tp mexpl vars_map =
     let ts = fst (Array.get trace tp) in
-    traceln "tp = %d\n" tp;
-    traceln "ts = %d\n" ts;
+    (* traceln "tp = %d\n" tp; *)
+    (* traceln "ts = %d\n" ts; *)
     if ts > r then
       Pdt.apply1_reduce either_v_equal vars
         (function First p -> First p
-                | Second vp2s -> traceln "creating correct proof";
-                                 Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
+                | Second vp2s -> Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
     else
       (if ts >= l && ts <= r then
          (let expl1 = eval vars VIO tp f1 vars_map in
@@ -779,17 +778,17 @@ let explain trace v pol tp f =
                           | First p -> First p
                           | Second vp2s ->
                              (match vp1_opt, vp2_opt with
-                              | None, None -> traceln "mexpl 1";
+                              | None, None -> (* traceln "mexpl 1"; *)
                                               Either.first None
-                              | None, Some p -> traceln "mexpl 2";
-                                                traceln "proof: %s" (Proof.to_string "" p);
+                              | None, Some p -> (* traceln "mexpl 2"; *)
+                                                (* traceln "proof: %s" (Proof.to_string "" p); *)
                                                 Either.second (Fdeque.enqueue_back vp2s (Proof.unV p))
-                              | Some p, None -> traceln "mexpl 3";
-                                                traceln "proof: %s" (Proof.to_string "" p);
+                              | Some p, None -> (* traceln "mexpl 3"; *)
+                                                (* traceln "proof: %s" (Proof.to_string "" p); *)
                                                 Either.first None
-                              | Some p1, Some p2 -> traceln "mexpl 4";
-                                                    traceln "proof1: %s" (Proof.to_string "" p1);
-                                                    traceln "proof2: %s" (Proof.to_string "" p2);
+                              | Some p1, Some p2 -> (* traceln "mexpl 4"; *)
+                                                    (* traceln "proof1: %s" (Proof.to_string "" p1); *)
+                                                    (* traceln "proof2: %s" (Proof.to_string "" p2); *)
                                                     Either.first
                                                       (Some (Proof.V (VUntil (cur_tp, (Proof.unV p1),
                                                                               Fdeque.enqueue_back vp2s (Proof.unV p2)))))
@@ -828,59 +827,63 @@ let explain trace v pol tp f =
           else until_vio cur_tp (l,r) vars f1 f2 (tp+1) mexpl vars_map)) in
   eval [] pol tp f (Map.empty (module String))
 
-(* Spawn thread to execute WhyMyMon somewhere in this function *)
-let read ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
-  let vars = Set.elements (Formula.fv f) in
-  let buf = Eio.Buf_read.of_flow r_source ~initial_size:100 ~max_size:1_000_000 in
-  let stop = ref false in
-  while true do
-    let line = Eio.Buf_read.line buf in
-    traceln "Read emonitor line: %s" line;
-    (* traceln "Trace size: %d" (Fdeque.length !trace); *)
-    if String.equal line "Stop" then raise Exit;
-    let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
-    traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
-    List.iter assignments ~f:(fun v ->
-      Stdio.printf "expl = %s\n" (Expl.opt_to_string (explain !trace v pol tp f));
-      let expl = Pdt.unsomes (explain !trace v pol tp f) in
-      match mode with
-      | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
-      | Verified -> let prefix = Array.slice !trace 0 (tp+1) in
-                    traceln "|prefix| = %d" (Array.length prefix);
-                    let (b, _, _) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
-                    Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
-      | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
-      | Debug -> let prefix = Array.slice !trace 0 (tp+1) in
-                 traceln "|prefix| = %d" (Array.length prefix);
-                 let (b, c_e, c_trace) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
-                 Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
-      | DebugVis -> ());
-    if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink);
-    Fiber.yield ()
-  done
 
-let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream trace =
-  let rec step pb_opt =
-    match Other_parser.Trace.parse_from_channel stream pb_opt with
-    | Finished -> traceln "Reached the end of event stream";
-                  end_of_stream := true;
-                  Fiber.yield ()
-    | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
-                           Fiber.yield ();
-                           step (Some(pb))
-    | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
-                      Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) w_sink;
-                      trace := Array.append !trace [|(pb.ts, pb.db)|];
-                      Fiber.yield ();
-                      step (Some(pb)) in
-  step None
+let read r_buf ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode =
+  let vars = Set.elements (Formula.fv f) in
+  let stop = ref false in
+  let break = ref false in
+  while not !break do
+    try
+      let line = Eio.Buf_read.line r_buf in
+      traceln "line = %s" line;
+      traceln "Read emonitor line: %s" line;
+      traceln "Trace length: %d" (Array.length !trace);
+      (* traceln "Trace size: %d" (Fdeque.length !trace); *)
+      if String.equal line "Stop" then raise Exit;
+      let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
+      traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
+      List.iter assignments ~f:(fun v ->
+          Stdio.printf "expl = %s\n" (Expl.opt_to_string (explain !trace v pol tp f));
+          let expl = Pdt.unsomes (explain !trace v pol tp f) in
+          match mode with
+          | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
+          | Verified -> let prefix = Array.slice !trace 0 (tp+1) in
+                        traceln "|prefix| = %d" (Array.length prefix);
+                        let (b, _, _) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
+                        Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
+          | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
+          | Debug -> let prefix = Array.slice !trace 0 (tp+1) in
+                     traceln "|prefix| = %d" (Array.length prefix);
+                     let (b, c_e, c_trace) = Checker_interface.check (Array.to_list prefix) v f (Pdt.unleaf expl) in
+                     Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
+          | DebugVis -> ());
+      if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink)
+    with End_of_file -> break := true
+  done;
+  Fiber.yield ()
+
+let write_lines (mon: Argument.Monitor.t) stream w_sink end_of_stream trace pb_opt =
+  match Other_parser.Trace.parse_from_channel stream !pb_opt with
+  | Finished -> traceln "Reached the end of event stream";
+                end_of_stream := true;
+                Fiber.yield ()
+  | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
+                         pb_opt := Some(pb);
+                         Fiber.yield ()
+  | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
+                    Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) w_sink;
+                    trace := Array.append !trace [|(pb.ts, pb.db)|];
+                    pb_opt := Some(pb);
+                    Fiber.yield ()
+
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
     (* Formula conversion *)
-    let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file ^ ".mfotl") in
+    let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file) in
+    let pol = Polarity.of_pref pref in
     traceln "Saving formula in %a" Eio.Path.pp f_path;
     Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
     (* Instantiate process/domain managers *)
@@ -891,10 +894,13 @@ let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
         let w_source, w_sink = Eio.Process.pipe ~sw proc_mgr in
         (* source and sink of emonitor's stdout *)
         let r_source, r_sink = Eio.Process.pipe ~sw proc_mgr in
+        let r_buf = Eio.Buf_read.of_flow r_source ~initial_size:100 ~max_size:1_000_000 in
         (* signals end of stream *)
         let end_of_stream = ref false in
         (* accumulated trace ref *)
         let trace = ref [||]  in
+        (* parsebuf ref *)
+        let pb_opt = ref None in
         try
           Fiber.all
             [ (* Spawn thread with external monitor process *)
@@ -909,9 +915,9 @@ let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
                 | `Signaled i -> traceln "Process signaled with: %d" i);
               (* External monitor I/O management *)
               (fun () -> traceln "Writing lines to emonitor's stdin...";
-                         write_lines mon stream w_sink end_of_stream trace);
+                         write_lines mon stream w_sink end_of_stream trace pb_opt);
               (fun () -> traceln "Reading lines from emonitor's stdout...";
-                         read ~domain_mgr r_source r_sink end_of_stream mon f trace (Polarity.of_pref pref) mode)
+                         read r_buf ~domain_mgr r_source r_sink end_of_stream mon f trace pol mode)
             ];
         with Exit -> Stdio.printf "Reached the end of the log file.\n"
       );
