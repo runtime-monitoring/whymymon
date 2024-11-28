@@ -829,7 +829,7 @@ let explain prefix v pol tp f =
   eval [] pol tp f (Map.empty (module String))
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
-let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars =
+let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp =
   while true do
     let line = Eio.Buf_read.line r_buf in
     traceln "Read emonitor line: %s" line;
@@ -854,15 +854,16 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars =
       (* (get_pos output to keep track of progress *)
       (traceln "Read current progress";
        let tp = Emonitor.parse_prog_tp mon line in
-       if Int.equal (Array.length !prefix - 1) tp then (Eio.Flow.copy_string "Stop\n" r_sink));
+       if Int.equal !last_tp tp then (Eio.Flow.copy_string "Stop\n" r_sink));
     Fiber.yield ()
   done
 
-let write (mon: Argument.Monitor.t) w_sink stream prefix =
+let write (mon: Argument.Monitor.t) w_sink stream prefix last_tp =
   let rec step pb_opt =
     match Other_parser.Trace.parse_from_channel stream pb_opt with
     | Finished -> traceln "Reached the end of event stream";
                   Eio.Flow.copy_string "> get_pos <\n" w_sink;
+                  last_tp := Array.length !prefix - 1;
                   Fiber.yield ()
     | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
                            Fiber.yield ();
@@ -896,6 +897,8 @@ let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
       let r_buf = Eio.Buf_read.of_flow r_source ~initial_size:100 ~max_size:1_000_000 in
       (* accumulated prefix ref *)
       let prefix = ref [||]  in
+      (* last time-point in the stream *)
+      let last_tp = ref (-1) in
       try
         Fiber.all
           [
@@ -907,8 +910,8 @@ let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
                          proc_mgr (args @ extra_args));
             (* External monitor I/O management *)
             (fun () -> traceln "Writing lines to emonitor's stdin...";
-                       write mon w_sink stream prefix);
+                       write mon w_sink stream prefix last_tp);
             (fun () -> traceln "Reading lines from emonitor's stdout...";
-                       read mon r_buf r_sink prefix f pol mode vars);
+                       read mon r_buf r_sink prefix f pol mode vars last_tp);
           ];
       with Exit -> Stdio.printf "Reached the end of the log file.\n");
