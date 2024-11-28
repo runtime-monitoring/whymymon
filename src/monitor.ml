@@ -186,6 +186,12 @@ let either_v_equal e e' = match e, e' with
   | Second vps, Second vps' -> Etc.fdeque_for_all2 vps vps' ~f:Proof.v_equal
   | _ -> false
 
+let either_v_equal2 e e' = match e, e' with
+  | First p, First p' -> Proof.opt_equal p p'
+  | Second (vp, vps), Second (vp', vps') -> Proof.opt_v_equal vp vp' &&
+                                              Etc.fdeque_for_all2 vps vps' ~f:Proof.v_equal
+  | _ -> false
+
 (* Note that the polarity pol considered is the one on the bottom level *)
 let rec stop_either vars vars_map expl (pol: Polarity.t) =
   (* traceln "STOP_EITHER |vars| = %d; pol = %s" (List.length vars) (Polarity.to_string pol); *)
@@ -412,7 +418,7 @@ let explain prefix v pol tp f =
                             | VIO -> let expl =
                                        Pdt.uneither
                                          (until_vio tp (l,r) vars f1 f2 tp
-                                            (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
+                                            (Pdt.Leaf (Either.second (None, Fdeque.empty))) vars_map) in
                                      (* traceln "SINCE_VIO (l=%d,r=%d) expl = %s" l r (Expl.to_string expl); *)
                                      expl)
 
@@ -765,62 +771,41 @@ let explain prefix v pol tp f =
     (* traceln "tp = %d\n" tp; *)
     (* traceln "ts = %d\n" ts; *)
     if ts > r then
-      Pdt.apply1_reduce either_v_equal vars
+      Pdt.apply1_reduce either_v_equal2 vars
         (function First p -> First p
-                | Second vp2s -> (* traceln "creating correct proof"; *)
-                                 Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
+                | Second (_, vp2s) -> Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
     else
       (if ts >= l && ts <= r then
          (let expl1 = eval vars VIO tp f1 vars_map in
           let expl2 = eval vars VIO tp f2 vars_map in
-          let mexpl = Pdt.apply3_reduce either_v_equal vars
+          let mexpl = Pdt.apply3_reduce either_v_equal2 vars
                         (fun vp1_opt vp2_opt p_vp2s ->
                           match p_vp2s with
                           | First p -> First p
-                          | Second vp2s ->
+                          | Second (Some vp1, vp2s) ->
+                             Either.first (Some (Proof.V (VUntil (cur_tp, vp1, vp2s))))
+                          | Second (None, vp2s) ->
                              (match vp1_opt, vp2_opt with
-                              | None, None -> (* traceln "mexpl 1"; *)
-                                              Either.first None
-                              | None, Some p -> (* traceln "mexpl 2"; *)
-                                                (* traceln "proof: %s" (Proof.to_string "" p); *)
-                                                Either.second (Fdeque.enqueue_back vp2s (Proof.unV p))
-                              | Some p, None -> (* traceln "mexpl 3"; *)
-                                                (* traceln "proof: %s" (Proof.to_string "" p); *)
-                                                Either.first None
-                              | Some p1, Some p2 -> (* traceln "mexpl 4"; *)
-                                                    (* traceln "proof1: %s" (Proof.to_string "" p1); *)
-                                                    (* traceln "proof2: %s" (Proof.to_string "" p2); *)
-                                                    Either.first
-                                                      (Some (Proof.V (VUntil (cur_tp, (Proof.unV p1),
-                                                                              Fdeque.enqueue_back vp2s (Proof.unV p2)))))
-
-
-
-                              (* | None, Some (Proof.V vp2) -> *)
-                              (*    (\* Found only beta violation within the interval *\) *)
-                              (*    traceln "mexpl 1"; *)
-                              (*    Either.second (Fdeque.enqueue_back vp2s vp2) *)
-                              (* | Some (Proof.V vp1), Some (Proof.V vp2) -> *)
-                              (*    (\* Found alpha and beta violation within the interval *\) *)
-                              (*    traceln "mexpl 2"; *)
-                              (*    Either.first *)
-                              (*      (Some (Proof.V (VUntil (cur_tp, vp1, Fdeque.enqueue_back vp2s vp2)))) *)
-                              (* | Some _, None -> traceln "mexpl 3"; Either.first None *)
-                              (* | None, None -> (\* traceln "p1 = %s\n" (Proof.to_string "" p1); *\) *)
-                              (*    (\* traceln "p2 = %s\n" (Proof.to_string "" p2); *\) *)
-                              (*    traceln "mexpl 4"; *)
-                              (*    Either.first None *))) expl1 expl2 mexpl in
+                              | None, None -> Either.first None
+                              | None, Some p ->
+                                 (* Found only beta violation within the interval *)
+                                 Either.second (None, Fdeque.enqueue_back vp2s (Proof.unV p))
+                              | Some p, None -> Either.first None
+                              | Some p1, Some p2 ->
+                                 (* Found alpha and beta violation within the interval *)
+                                 Either.second (Some (Proof.unV p1), Fdeque.enqueue_back vp2s (Proof.unV p2))))
+                        expl1 expl2 mexpl in
           if stop_either vars vars_map mexpl VIO then mexpl
           else until_vio cur_tp (l,r) vars f1 f2 (tp+1) mexpl vars_map)
        else
          (let expl1 = eval vars VIO tp f1 vars_map in
-          let mexpl = Pdt.apply2_reduce either_v_equal vars
+          let mexpl = Pdt.apply2_reduce either_v_equal2 vars
                         (fun vp1_opt p_vp2s ->
                           match p_vp2s with
                             First p -> First p
-                          | Second vp2s ->
+                          | Second vp1_opt_vp2s ->
                              (match vp1_opt with
-                              | None -> Second vp2s
+                              | None -> Second vp1_opt_vp2s
                               | Some (Proof.V vp1) ->
                                  Either.first (Some (Proof.V (Proof.VUntil (cur_tp, vp1, Fdeque.empty))))))
                         expl1 mexpl in
