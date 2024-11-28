@@ -214,7 +214,7 @@ let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
        | Universal, SAT -> Part.for_all part (fun expl -> stop xs vars_map expl pol)
      | _ -> raise (Failure "stop: issue with variable ordering")
 
-let explain trace v pol tp f =
+let explain prefix v pol tp f =
   (* traceln "assignment: %s" (Assignment.to_string v); *)
   (* traceln "tp = %d" tp; *)
   let rec eval vars (pol: Polarity.t) tp (f: Formula.t) vars_map = match f with
@@ -246,8 +246,8 @@ let explain trace v pol tp f =
                                                            trm
                                                         | Some d -> Const d)
                                                      else trm) in
-       (* traceln "db = %s" (Db.to_string (snd (Array.get trace tp))); *)
-       let db = Set.filter (snd (Array.get trace tp)) ~f:(fun evt -> String.equal r (fst(evt))) in
+       (* traceln "db = %s" (Db.to_string (snd (Array.get prefix tp))); *)
+       let db = Set.filter (snd (Array.get prefix tp)) ~f:(fun evt -> String.equal r (fst(evt))) in
        let maps = Set.fold db ~init:[] ~f:(fun acc evt -> match_terms trms_subst (snd evt)
                                                             (Map.empty (module String)) :: acc) in
        (* traceln "|maps| = %d" (List.length maps); *)
@@ -316,19 +316,19 @@ let explain trace v pol tp f =
           | VIO -> Pdt.Leaf (Some (V VPrev0)))
        else
          (let expl = eval vars pol tp f vars_map in
-          let ts = fst (Array.get trace tp) in
-          let ts' = fst (Array.get trace (tp-1)) in
+          let ts = fst (Array.get prefix tp) in
+          let ts' = fst (Array.get prefix (tp-1)) in
           let expl = Pdt.apply1_reduce Proof.opt_equal vars
                        (fun p_opt -> do_prev i p_opt ts ts' pol) expl in
           expl)
     | Next (i, f) ->
        let expl = eval vars pol tp f vars_map in
-       let ts = fst (Array.get trace tp) in
-       let ts' = fst (Array.get trace (tp+1)) in
+       let ts = fst (Array.get prefix tp) in
+       let ts' = fst (Array.get prefix (tp+1)) in
        let expl = Pdt.apply1_reduce Proof.opt_equal vars
                     (fun p_opt -> do_next i p_opt ts ts' pol) expl in
        expl
-    | Once (i, f) -> (let ts = fst (Array.get trace tp) in
+    | Once (i, f) -> (let ts = fst (Array.get prefix tp) in
                       let l = match Interval.right i with
                         | None -> 0
                         | Some b -> ts - b in
@@ -341,7 +341,7 @@ let explain trace v pol tp f =
                                                           (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
                                (* traceln "ONCE_VIO expl = %s" (Expl.to_string expl); *)
                                expl)
-    | Eventually (i, f) -> (let ts = fst (Array.get trace tp) in
+    | Eventually (i, f) -> (let ts = fst (Array.get prefix tp) in
                             let l = ts + Interval.left i in
                             let r = match Interval.right i with
                               | None -> raise (Failure "unbounded eventually")
@@ -354,7 +354,7 @@ let explain trace v pol tp f =
                                                                 (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
                                      (* traceln "EVENTUALLY_VIO expl = %s" (Expl.to_string expl); *)
                                      expl)
-    | Historically (i, f) -> (let ts = fst (Array.get trace tp) in
+    | Historically (i, f) -> (let ts = fst (Array.get prefix tp) in
                               let l = match Interval.right i with
                                 | None -> 0
                                 | Some b -> ts - b in
@@ -367,7 +367,7 @@ let explain trace v pol tp f =
                               | VIO -> let expl = historically_vio tp (l,r) vars f tp (Pdt.Leaf None) vars_map in
                                        (* traceln "HISTORICALLY_VIO expl = %s" (Expl.to_string expl); *)
                                        expl)
-    | Always (i, f) -> (let ts = fst (Array.get trace tp) in
+    | Always (i, f) -> (let ts = fst (Array.get prefix tp) in
                         let l = ts + Interval.left i in
                         let r = match Interval.right i with
                           | None -> raise (Failure "unbounded always")
@@ -380,7 +380,7 @@ let explain trace v pol tp f =
                         | VIO -> let expl = always_vio tp (l,r) vars f tp (Pdt.Leaf None) vars_map in
                                  (* traceln "ALWAYS_VIO expl = %s" (Expl.to_string expl); *)
                                  expl)
-    | Since (i, f1, f2) -> (let ts = fst (Array.get trace tp) in
+    | Since (i, f1, f2) -> (let ts = fst (Array.get prefix tp) in
                             let l = match Interval.right i with
                               | None -> 0
                               | Some b -> ts - b in
@@ -397,12 +397,12 @@ let explain trace v pol tp f =
                                             (Pdt.Leaf (Either.second Fdeque.empty)) vars_map) in
                                      (* traceln "SINCE_VIO (l=%d,r=%d) expl = %s" l r (Expl.to_string expl); *)
                                      expl)
-    | Until (i, f1, f2) -> (let ts = fst (Array.get trace tp) in
+    | Until (i, f1, f2) -> (let ts = fst (Array.get prefix tp) in
                             let l = ts + Interval.left i in
                             let r = match Interval.right i with
                               | None -> raise (Failure "unbounded until")
                               | Some b -> ts + b in
-                            traceln "until (l,r) = (%d, %d)" l r;
+                            (* traceln "until (l,r) = (%d, %d)" l r; *)
                             match pol with
                             | SAT -> let expl = Pdt.uneither
                                                   (until_sat (l,r) vars f1 f2 tp
@@ -421,7 +421,7 @@ let explain trace v pol tp f =
     if tp < 0 || r < 0 then
       Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
     else
-      (let ts = fst (Array.get trace tp) in
+      (let ts = fst (Array.get prefix tp) in
        if ts < l then
          Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
        else
@@ -449,7 +449,7 @@ let explain trace v pol tp f =
            (function First p -> First p
                    | Second _ -> Either.first (Some (Proof.V (VOnceOut cur_tp)))) mexpl
        else
-         (let ts = fst (Array.get trace tp) in
+         (let ts = fst (Array.get prefix tp) in
           if ts < l then
             (Pdt.apply1_reduce either_v_equal vars
                (function First p -> First p
@@ -473,7 +473,7 @@ let explain trace v pol tp f =
 
   (* Eventually *)
   and eventually_sat cur_tp (l,r) vars f tp mexpl vars_map =
-    let ts = fst (Array.get trace tp) in
+    let ts = fst (Array.get prefix tp) in
     if ts > r then
       Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
     else
@@ -491,7 +491,7 @@ let explain trace v pol tp f =
           else eventually_sat cur_tp (l,r) vars f (tp+1) mexpl vars_map)
        else eventually_sat cur_tp (l,r) vars f (tp+1) mexpl vars_map)
   and eventually_vio cur_tp (l,r) vars f tp mexpl vars_map =
-    let ts = fst (Array.get trace tp) in
+    let ts = fst (Array.get prefix tp) in
     if ts > r then
       Pdt.apply1_reduce either_v_equal vars
         (function First p -> First p
@@ -525,7 +525,7 @@ let explain trace v pol tp f =
            (function First p -> First p
                    | Second _ -> Either.first (Some (Proof.S (SHistoricallyOut cur_tp)))) mexpl
        else
-         (let ts = fst (Array.get trace tp) in
+         (let ts = fst (Array.get prefix tp) in
           if ts < l then
             (Pdt.apply1_reduce either_s_equal vars
                (function First p -> First p
@@ -550,7 +550,7 @@ let explain trace v pol tp f =
     if tp < 0 || r < 0 then
       Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
     else
-      (let ts = fst (Array.get trace tp) in
+      (let ts = fst (Array.get prefix tp) in
        if ts < l then
          Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
        else
@@ -570,7 +570,7 @@ let explain trace v pol tp f =
 
   (* Always *)
   and always_sat cur_tp (l,r) vars f tp mexpl vars_map =
-    let ts = fst (Array.get trace tp) in
+    let ts = fst (Array.get prefix tp) in
     if ts > r then
       Pdt.apply1_reduce either_s_equal vars
         (function First p -> First p
@@ -592,7 +592,7 @@ let explain trace v pol tp f =
           else always_sat cur_tp (l,r) vars f (tp+1) mexpl vars_map)
        else always_sat cur_tp (l,r) vars f (tp+1) mexpl vars_map)
   and always_vio cur_tp (l,r) vars f tp mexpl vars_map =
-    let ts = fst (Array.get trace tp) in
+    let ts = fst (Array.get prefix tp) in
     if ts > r then
       Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
     else
@@ -617,7 +617,7 @@ let explain trace v pol tp f =
         (function First p -> First p
                 | Second _ -> Either.first None) mexpl
     else
-      (let ts = fst (Array.get trace tp) in
+      (let ts = fst (Array.get prefix tp) in
        if ts < l then
          Pdt.apply1_reduce either_s_equal vars
            (function First p -> First p
@@ -672,7 +672,7 @@ let explain trace v pol tp f =
            (function First p -> First p
                    | Second _ -> Either.first (Some (Proof.V (VSinceOut cur_tp)))) mexpl
        else
-         (let ts = fst (Array.get trace tp) in
+         (let ts = fst (Array.get prefix tp) in
           if ts < l then
             (Pdt.apply1_reduce either_v_equal vars
                (function First p -> First p
@@ -716,7 +716,7 @@ let explain trace v pol tp f =
 
   (* Until *)
   and until_sat (l,r) vars f1 f2 tp mexpl vars_map =
-    let ts = fst (Array.get trace tp) in
+    let ts = fst (Array.get prefix tp) in
     if ts > r then
       Pdt.apply1_reduce either_s_equal vars
         (function First p -> First p
@@ -761,13 +761,13 @@ let explain trace v pol tp f =
           if stop_either vars vars_map mexpl SAT then mexpl
           else until_sat (l,r) vars f1 f2 (tp+1) mexpl vars_map))
   and until_vio cur_tp (l,r) vars f1 f2 tp mexpl vars_map =
-    let ts = fst (Array.get trace tp) in
-    traceln "tp = %d\n" tp;
-    traceln "ts = %d\n" ts;
+    let ts = fst (Array.get prefix tp) in
+    (* traceln "tp = %d\n" tp; *)
+    (* traceln "ts = %d\n" ts; *)
     if ts > r then
       Pdt.apply1_reduce either_v_equal vars
         (function First p -> First p
-                | Second vp2s -> traceln "creating correct proof";
+                | Second vp2s -> (* traceln "creating correct proof"; *)
                                  Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
     else
       (if ts >= l && ts <= r then
@@ -779,17 +779,17 @@ let explain trace v pol tp f =
                           | First p -> First p
                           | Second vp2s ->
                              (match vp1_opt, vp2_opt with
-                              | None, None -> traceln "mexpl 1";
+                              | None, None -> (* traceln "mexpl 1"; *)
                                               Either.first None
-                              | None, Some p -> traceln "mexpl 2";
-                                                traceln "proof: %s" (Proof.to_string "" p);
+                              | None, Some p -> (* traceln "mexpl 2"; *)
+                                                (* traceln "proof: %s" (Proof.to_string "" p); *)
                                                 Either.second (Fdeque.enqueue_back vp2s (Proof.unV p))
-                              | Some p, None -> traceln "mexpl 3";
-                                                traceln "proof: %s" (Proof.to_string "" p);
+                              | Some p, None -> (* traceln "mexpl 3"; *)
+                                                (* traceln "proof: %s" (Proof.to_string "" p); *)
                                                 Either.first None
-                              | Some p1, Some p2 -> traceln "mexpl 4";
-                                                    traceln "proof1: %s" (Proof.to_string "" p1);
-                                                    traceln "proof2: %s" (Proof.to_string "" p2);
+                              | Some p1, Some p2 -> (* traceln "mexpl 4"; *)
+                                                    (* traceln "proof1: %s" (Proof.to_string "" p1); *)
+                                                    (* traceln "proof2: %s" (Proof.to_string "" p2); *)
                                                     Either.first
                                                       (Some (Proof.V (VUntil (cur_tp, (Proof.unV p1),
                                                                               Fdeque.enqueue_back vp2s (Proof.unV p2)))))
@@ -829,54 +829,51 @@ let explain trace v pol tp f =
   eval [] pol tp f (Map.empty (module String))
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
-let read (mon: Argument.Monitor.t) r_buf r_sink end_of_stream prefix f pol mode vars =
-  let line = Eio.Buf_read.line r_buf in
-  traceln "Read emonitor line: %s" line;
-  (* traceln "Trace size: %d" (Fdeque.length !prefix); *)
-  if String.equal line "Stop" then raise Exit;
-  let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
-  traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
-  List.iter assignments ~f:(fun v ->
-      (* Stdio.printf "expl = %s\n" (Expl.opt_to_string (explain !prefix v pol tp f)); *)
-      let expl = Pdt.unsomes (explain !prefix v pol tp f) in
-      match mode with
-      | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
-      | Verified -> traceln "|prefix| = %d" (Array.length !prefix);
-                    let (b, _, _) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
-                    (* Out.Plain.print (ExplanationCheck ((ts, tp), expl, b)) *) ()
-      | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
-      | Debug -> traceln "|prefix| = %d" (Array.length !prefix);
-                 let (b, c_e, c_trace) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
-                 Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
-      | DebugVis -> ());
-  if !end_of_stream then (Eio.Flow.copy_string "Stop\n" r_sink)
+let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars =
+  while true do
+    let line = Eio.Buf_read.line r_buf in
+    traceln "Read emonitor line: %s" line;
+    if String.equal line "Stop" then raise Exit;
+    if Emonitor.is_verdict mon line then
+      (let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
+       traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
+       List.iter assignments ~f:(fun v ->
+           (* Stdio.printf "expl = %s\n" (Expl.opt_to_string (explain !prefix v pol tp f)); *)
+           let expl = Pdt.unsomes (explain !prefix v pol tp f) in
+           match mode with
+           | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
+           | Verified ->
+              let (b, _, _) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
+              Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
+           | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
+           | Debug ->
+              let (b, c_e, c_trace) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
+              Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
+           | DebugVis -> ()))
+    else
+      (* (get_pos output to keep track of progress *)
+      (traceln "Read current progress";
+       let tp = Emonitor.parse_prog_tp mon line in
+       if Int.equal (Array.length !prefix - 1) tp then (Eio.Flow.copy_string "Stop\n" r_sink));
+    Fiber.yield ()
+  done
 
-(* let write_lines (mon: Argument.Monitor.t) w_sink stream end_of_stream prefix = *)
-(*   let rec step pb_opt = *)
-(*     match Other_parser.Trace.parse_from_channel stream pb_opt with *)
-(*     | Finished -> traceln "Reached the end of event stream"; *)
-(*                   end_of_stream := true; *)
-(*                   Fiber.yield () *)
-(*     | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg; *)
-(*                            Fiber.yield (); *)
-(*                            step (Some(pb)) *)
-(*     | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts; *)
-(*                       Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) w_sink; *)
-(*                       trace := Array.append !trace [|(pb.ts, pb.db)|]; *)
-(*                       Fiber.yield (); *)
-(*                       step (Some(pb)) in *)
-(*   step None *)
-
-let rec write (mon: Argument.Monitor.t) w_sink stream end_of_stream prefix pb_opt =
-  match Other_parser.Trace.parse_from_channel stream !pb_opt with
-  | Finished -> traceln "Reached the end of event stream";
-                end_of_stream := true
-  | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
-                         pb_opt := Some(pb)
-  | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
-                    Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) w_sink;
-                    prefix := Array.append !prefix [|(pb.ts, pb.db)|];
-                    pb_opt := Some(pb)
+let write (mon: Argument.Monitor.t) w_sink stream prefix =
+  let rec step pb_opt =
+    match Other_parser.Trace.parse_from_channel stream pb_opt with
+    | Finished -> traceln "Reached the end of event stream";
+                  Eio.Flow.copy_string "> get_pos <\n" w_sink;
+                  Fiber.yield ()
+    | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
+                           Fiber.yield ();
+                           step (Some(pb))
+    | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
+                      Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) w_sink;
+                      Eio.Flow.copy_string "> get_pos <\n" w_sink;
+                      prefix := Array.append !prefix [|(pb.ts, pb.db)|];
+                      Fiber.yield ();
+                      step (Some(pb)) in
+  step None
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
@@ -897,29 +894,21 @@ let exec mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
       (* source and sink of emonitor's stdout *)
       let r_source, r_sink = Eio.Process.pipe ~sw proc_mgr in
       let r_buf = Eio.Buf_read.of_flow r_source ~initial_size:100 ~max_size:1_000_000 in
-      (* signals end of stream *)
-      let end_of_stream = ref false in
       (* accumulated prefix ref *)
       let prefix = ref [||]  in
-      (* parsebuf ref *)
-      let pb_opt = ref None in
-      (* Spawn thread with external monitor process *)
-      Fiber.fork ~sw
-        (fun () -> let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
-                   let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
-                   traceln "Running process with: %s" (Etc.string_list_to_string ~sep:" " args);
-                   let emon_proc = Eio.Process.spawn ~sw ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
-                                     proc_mgr (args @ extra_args) in
-                   match Eio.Process.await emon_proc with
-                   | `Exited i -> traceln "Process exited with: %d" i
-                   | `Signaled i -> traceln "Process signaled with: %d" i);
       try
-        Fiber.both
-          (* External monitor I/O management *)
-          (fun () -> traceln "Writing lines to emonitor's stdin...";
-                     write mon w_sink stream end_of_stream prefix pb_opt;
-                     Fiber.yield ())
-          (fun () -> traceln "Reading lines from emonitor's stdout...";
-                     read mon r_buf r_sink end_of_stream prefix f pol mode vars;
-                     Fiber.yield ())
+        Fiber.all
+          [
+            (* Spawn thread with external monitor process *)
+            (fun () -> let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
+                       let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
+                       traceln "Running process with: %s" (Etc.string_list_to_string ~sep:" " args);
+                       Eio.Process.run ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
+                         proc_mgr (args @ extra_args));
+            (* External monitor I/O management *)
+            (fun () -> traceln "Writing lines to emonitor's stdin...";
+                       write mon w_sink stream prefix);
+            (fun () -> traceln "Reading lines from emonitor's stdout...";
+                       read mon r_buf r_sink prefix f pol mode vars);
+          ];
       with Exit -> Stdio.printf "Reached the end of the log file.\n");

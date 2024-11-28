@@ -23,6 +23,20 @@ let to_tpts_assignments (mon: Argument.Monitor.t) vars line =
   | DejaVu -> failwith "missing"
   | TimelyMon -> failwith "missing"
 
+let is_verdict (mon: Argument.Monitor.t) line =
+  match mon with
+  | MonPoly
+    | VeriMon -> String.equal (String.prefix line 1) "@"
+  | DejaVu -> failwith "missing"
+  | TimelyMon -> failwith "missing"
+
+let parse_prog_tp (mon: Argument.Monitor.t) line =
+  match mon with
+  | MonPoly -> Int.of_string (List.last_exn (String.split line ~on:' '))
+  | VeriMon -> failwith "missing"
+  | DejaVu -> failwith "missing"
+  | TimelyMon -> failwith "missing"
+
 let write_line (mon: Argument.Monitor.t) (ts, db) =
   match mon with
   | MonPoly
