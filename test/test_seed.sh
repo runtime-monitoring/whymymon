@@ -23,10 +23,11 @@ usage () {
 
 verb () {
 
-    ./tmp/gen_fmla ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
+    ./test/gen_fmla ${PREFIX} ${SIZE} 10 0 ${SCALE} ${SEED} 16
 
-    ./tmp/gen_log ${PREFIX} 100 ${ER} ${DELTA} ${SEED} 16
-    mv ${PREFIX}.* tmp/
+    ./test/gen_log ${PREFIX} 100 ${ER} ${DELTA} ${SEED} 16
+
+    mv ${PREFIX}.* test/tmp/
 
     if [[ "${CHECK_FLAG}" = "verified" ]]
     then
@@ -54,6 +55,7 @@ verb () {
     if [[ "${OUT_GREP}" == *"exception"* ]]
     then
         printf " !! EXCEPTION RAISED !!\n"
+        printf "${OUT}\n"
     fi
     printf "\n"
 }

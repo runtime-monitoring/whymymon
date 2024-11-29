@@ -15,6 +15,10 @@
 ## ER    -> 1  10  100
 ## DELTA -> 4  100
 
+# Script's full path
+FULL_PATH=$(readlink -f -- "$0")
+CUR_DIR=${FULL_PATH%/*}
+
 # Input parameters:
 N_SEEDS=$1
 
@@ -51,7 +55,7 @@ for i in "${SIZES[@]}"; do
                     printf "<@> Running ${N_SEEDS} verified tests with parameters\n"
                     printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
 
-                    time parallel ./test_seed.sh verified $i $j $k $l ::: "${SEEDS}"
+                    time parallel ./test/test_seed.sh verified $i $j $k $l ::: "${SEEDS}"
 
                     # ./clean.sh
                     printf "\n"
@@ -61,7 +65,7 @@ for i in "${SIZES[@]}"; do
                         printf "<@> Running ${N_SEEDS} tests with parameters\n"
                         printf "<@> { size = $i | scale = $j | er = $k | delta = $l }\n"
 
-                        time parallel ./test_seed.sh unverified $i $j $k $l ::: "${SEEDS}"
+                        time parallel ./test/test_seed.sh unverified $i $j $k $l ::: "${SEEDS}"
 
                         # ./clean.sh
                         printf "\n"
