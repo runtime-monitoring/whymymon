@@ -12,9 +12,9 @@ test/tmp/*.mtl
 test/tmp/*.mfotl
 test/tmp/*.mlog
 test/tmp/*.r2u2
-test/tmp/gen_log
-test/tmp/gen_fmla
-test/tmp/gen_fmla_full
+test/gen_log
+test/gen_fmla
+test/gen_fmla_full
 
 # example
 examples/all/nokia/all.log
