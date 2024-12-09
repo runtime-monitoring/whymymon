@@ -18,7 +18,7 @@ export default function NavBar() {
             <Link to="/" style={{ textDecoration: 'none' }}>
               <Button color="secondary">
                 <Typography variant="h6" component="div">
-                  WhyMon
+                  WhyMyMon
                 </Typography>
               </Button>
             </Link>
@@ -30,13 +30,6 @@ export default function NavBar() {
               </Typography>
             </Button>
           </Link>
-          <a href="https://github.com/runtime-monitoring/whymon/issues" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-            <Button color="secondary" startIcon={<BugReportIcon />}>
-              <Typography variant="button" component="div" >
-                Report a bug
-              </Typography>
-            </Button>
-          </a>
           <Link to="/about" style={{ textDecoration: 'none' }}>
             <Button color="secondary" startIcon={<InfoIcon />}>
               <Typography variant="button" component="div">

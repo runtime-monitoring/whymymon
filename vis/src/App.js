@@ -27,7 +27,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <Box>
-        <BrowserRouter basename="/whymon">
+        <BrowserRouter basename="/whymymon">
           <NavBar />
           <Routes>
             <Route path="/" element={<Monitor />} />

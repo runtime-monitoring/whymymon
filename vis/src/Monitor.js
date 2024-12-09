@@ -4,24 +4,12 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import { styled } from '@mui/material/styles';
 import Tooltip, { tooltipClasses } from '@mui/material/Tooltip';
-import Draggable from 'react-draggable';
-import TraceTextField from './components/TraceTextField';
-import SigTextField from './components/SigTextField';
-import AppendTraceTextField from './components/AppendTraceTextField';
+import ClipLoader from "react-spinners/ClipLoader";
 import FormulaTextField from './components/FormulaTextField';
 import TimeGrid from './components/TimeGrid';
-import MonitorButton from './components/MonitorButton';
-import HelpButton from './components/HelpButton';
-import AppendButton from './components/AppendButton';
-import LeaveButton from './components/LeaveButton';
 import ResetButton from './components/ResetButton';
 import UndoButton from './components/UndoButton';
-import ExampleSelect from './components/ExampleSelect';
-import ExampleGroupSelect from './components/ExampleGroupSelect';
-import AlertDialog from './components/AlertDialog';
 import CheckmarkOptions from './components/CheckmarkOptions';
-import SyntaxCheckBar from './components/SyntaxCheckBar';
-import HelpCard from './components/HelpCard';
 import { computeDbsTable, initRhsTable, initHovers, translateError, removeAngleBrackets } from './util';
 
 function initMonitorState () {
@@ -271,7 +259,7 @@ export default function Monitor() {
   const [formState, setFormState] = useReducer(formStateReducer, { formula: "", trace: "", sig: "", appendTrace: "",
                                                                    checkedInputs: {0: "empty", 1: "empty", 2: "empty"} });
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer, initMonitorState ());
-  const [isHelpCardVisible, setIsHelpCardVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
   const nodeRef = useRef(null);
 
 
@@ -317,23 +305,29 @@ export default function Monitor() {
     setFormState({ type: 'setAppendTrace', appendTrace: "" });
   };
 
+  const override: CSSProperties = {
+    display: "block",
+    margin: "0 auto",
+    borderColor: "#b2dfdb",
+  };
+
   return (
     <Box>
 
-      { (monitorState.dialog !== undefined && (Object.keys(monitorState.dialog).length !== 0)) &&
-        <AlertDialog open={true} dialog={monitorState.dialog} setMonitorState={setMonitorState} />
-      }
-
-      { isHelpCardVisible &&
-        <Draggable nodeRef={nodeRef}
-                   positionOffset={{ x: '100%', y: '15%' }}>
-          <div className="draggable" ref={nodeRef}>
-            <HelpCard setIsHelpCardVisible={setIsHelpCardVisible}/>
-          </div>
-        </Draggable>
-      }
-
       <Container maxWidth={false}>
+
+        <Box sx={{ mt: 50 }}>
+          <ClipLoader
+            color="#ffffff"
+            loading={loading}
+            cssOverride={override}
+            size={200}
+            aria-label="Loading Spinner"
+            data-testid="loader"
+          />
+        </Box>
+
+        {/*
         <Box sx={{ mt: 12.5 }}>
           <Grid container spacing={1}>
 
@@ -352,8 +346,6 @@ export default function Monitor() {
                     <MonitorButton handleMonitor={handleMonitor} />
                   </Grid>
                   <Grid item xs={12} sm={2} md={2} lg={2} xl={2}>
-                    <HelpButton isHelpCardVisible={isHelpCardVisible}
-                                setIsHelpCardVisible={setIsHelpCardVisible} />
                   </Grid>
                 </Grid>
                 <Grid item xs={12} sm={6} md={6} lg={6} xl={6}>
@@ -391,9 +383,6 @@ export default function Monitor() {
                   <Grid item xs={12} sm={4} md={4} lg={4} xl={4}>
                     <AppendButton handleAppend={handleAppend} BootstrapTooltip={BootstrapTooltip} />
                   </Grid>
-                  {/*<Grid item xs={12} sm={12} md={3} lg={3} xl={3}>
-                     <UndoButton handleUndo={handleLeave} BootstrapTooltip={BootstrapTooltip} />
-                     </Grid>*/}
                   <Grid item xs={12} sm={4} md={4} lg={4} xl={4}>
                     <ResetButton handleReset={handleReset} BootstrapTooltip={BootstrapTooltip} />
                   </Grid>
@@ -425,7 +414,7 @@ export default function Monitor() {
               </Grid>
             }
           </Grid>
-        </Box>
+        </Box> */}
       </Container>
     </Box>
   );
