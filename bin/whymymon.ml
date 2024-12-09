@@ -20,6 +20,7 @@ module WhyMyMon = struct
   let sig_path_ref = ref ""
   let formula_file_ref = ref ""
 
+  let interf_ref = ref Argument.Interface.GUI
   let mon_ref = ref Argument.Monitor.MonPoly
   let pref_ref = ref Argument.Preference.Violation
   let mode_ref = ref Argument.Mode.Unverified
@@ -33,6 +34,8 @@ module WhyMyMon = struct
     Format.eprintf
       "usage: whymymon.exe -path -sig -formula [-monitor] [-path] [-pref] [-log]
        arguments:
+       \t -gui                 - explanations are sent to the GUI (default)
+       \t -cli                 - explanations are printed on the CLI
        \t -monitor
        \t\t monpoly            - (default)
        \t\t dejavu
@@ -57,6 +60,12 @@ module WhyMyMon = struct
 
   let process_args =
     let rec process_args_rec = function
+      | ("-gui" :: args) ->
+         interf_ref := Argument.Interface.GUI;
+         process_args_rec args
+      | ("-cli" :: args) ->
+         interf_ref := Argument.Interface.CLI;
+         process_args_rec args
       | ("-monitor" :: m :: args) ->
          nec_arg_count := !nec_arg_count + 1;
          mon_ref := Argument.Monitor.of_string m;
@@ -106,7 +115,7 @@ module WhyMyMon = struct
       let extra_args = Argument.Monitor.extra_args !pref_ref !mon_ref in
       match !mon_ref with
       | MonPoly
-        | VeriMon -> let _ = Monitor.exec !mon_ref ~mon_path:!mon_path_ref ~sig_path:!sig_path_ref
+        | VeriMon -> let _ = Monitor.exec !interf_ref !mon_ref ~mon_path:!mon_path_ref ~sig_path:!sig_path_ref
                                ~formula_file:!formula_file_ref !stream_ref (Option.value_exn !formula_ref)
                                !pref_ref !mode_ref extra_args in ()
       | _ -> failwith "not yet"

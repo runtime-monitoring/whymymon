@@ -40,3 +40,9 @@ module Mode : sig
   val to_string: t -> string
 
 end
+
+module Interface : sig
+
+  type t = GUI | CLI
+
+end

@@ -25,14 +25,14 @@ module Plain : sig
 
 end
 
-(* module Json : sig *)
+module Json : sig
 
-(*   val table_columns: Formula.t -> string *)
+  val table_columns: Formula.t -> string
 
-(*   val db: timestamp -> timepoint -> Db.t -> Formula.t -> string *)
+  val db: timestamp -> timepoint -> Db.t -> Formula.t -> string
 
-(*   val expls: (timepoint, timestamp) Hashtbl.t -> Formula.t -> Expl.t list -> string list *)
+  val expl: timestamp -> timepoint -> Formula.t -> Expl.t -> string
 
-(*   val aggregate: string list -> string list -> string -> string *)
+  val aggregate: string list -> string list -> string -> string
 
-(* end *)
+end

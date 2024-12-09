@@ -80,3 +80,9 @@ module Mode = struct
     | DebugVis -> "DebugVis"
 
 end
+
+module Interface = struct
+
+  type t = GUI | CLI
+
+end
