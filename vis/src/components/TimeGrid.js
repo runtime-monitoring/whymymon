@@ -57,7 +57,7 @@ function TimeGrid ({ columns,
   const [anchorValue, setAnchorValue] = useState({});
   const open = Boolean(anchorEl);
 
-  const height = (window.innerHeight - 270).toString() + "px";
+  const height = (window.innerHeight - 215).toString() + "px";
 
   const handlePopoverOpen = (event) => {
     const row = event.currentTarget.parentElement.dataset.id;

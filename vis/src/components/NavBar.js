@@ -30,6 +30,13 @@ export default function NavBar() {
               </Typography>
             </Button>
           </Link>
+          <a href="https://github.com/runtime-monitoring/whymymon/issues" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+            <Button color="secondary" startIcon={<BugReportIcon />}>
+              <Typography variant="button" component="div" >
+                Report a bug
+              </Typography>
+            </Button>
+          </a>
           <Link to="/about" style={{ textDecoration: 'none' }}>
             <Button color="secondary" startIcon={<InfoIcon />}>
               <Typography variant="button" component="div">
