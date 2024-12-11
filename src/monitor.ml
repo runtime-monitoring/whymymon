@@ -812,7 +812,7 @@ let explain prefix v pol tp f =
   eval [] pol tp f (Map.empty (module String))
 
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
-let read interf (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp http_flow =
+let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp http_flow_opt =
   while true do
     let line = Eio.Buf_read.line r_buf in
     traceln "Read emonitor line: %s" line;
@@ -823,8 +823,8 @@ let read interf (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars la
        List.iter assignments ~f:(fun v ->
            (* Stdio.printf "expl = %s\n" (Expl.opt_to_string (explain !prefix v pol tp f)); *)
            let expl = Pdt.unsomes (explain !prefix v pol tp f) in
-           (match interf with
-            | Argument.Interface.CLI ->
+           (match http_flow_opt with
+            | None ->
                (match mode with
                 | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
                 | Verified ->
@@ -835,7 +835,7 @@ let read interf (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars la
                    let (b, c_e, c_trace) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
                    Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
                 | DebugVis -> ())
-            | GUI ->
+            | Some http_flow ->
                (match mode with
                 | Argument.Mode.Unverified -> Eio.Flow.copy_string (Out.Json.expl ts tp f expl) http_flow
                 | Verified ->
@@ -872,6 +872,24 @@ let write (mon: Argument.Monitor.t) w_sink stream prefix last_tp =
                       step (Some(pb)) in
   step None
 
+let run_emonitor mon mon_path sig_path f_path r_sink w_source proc_mgr extra_args =
+  let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
+  let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
+  traceln "Running process with: %s" (Etc.string_list_to_string ~sep:" " args);
+  Eio.Process.run ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
+    proc_mgr (args @ extra_args)
+
+let exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
+      extra_args stream prefix last_tp f pol mode vars http_flow_opt =
+  Fiber.all
+    [ (* Spawn thread with external monitor process *)
+      (fun () -> run_emonitor mon mon_path sig_path f_path r_sink w_source proc_mgr extra_args);
+      (* External monitor I/O management *)
+      (fun () -> traceln "Writing lines to emonitor's stdin...";
+                 write mon w_sink stream prefix last_tp);
+      (fun () -> traceln "Reading lines from emonitor's stdout...";
+                 read mon r_buf r_sink prefix f pol mode vars last_tp http_flow_opt)]
+
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
   let pol = Polarity.of_pref pref in
@@ -896,20 +914,12 @@ let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_a
       (* last time-point in the stream *)
       let last_tp = ref (-1) in
       try
-        let net = Eio.Stdenv.net env in
-        Eio.Net.with_tcp_connect net ~host:"localhost" ~service:"31415" (fun http_flow ->
-          Fiber.all
-            [
-              (* Spawn thread with external monitor process *)
-              (fun () -> let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
-                         let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
-                         traceln "Running process with: %s" (Etc.string_list_to_string ~sep:" " args);
-                         Eio.Process.run ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
-                           proc_mgr (args @ extra_args));
-              (* External monitor I/O management *)
-              (fun () -> traceln "Writing lines to emonitor's stdin...";
-                         write mon w_sink stream prefix last_tp);
-              (fun () -> traceln "Reading lines from emonitor's stdout...";
-                         read interf mon r_buf r_sink prefix f pol mode vars last_tp http_flow);
-            ])
+        match interf with
+        | Argument.Interface.CLI ->
+           exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
+             extra_args stream prefix last_tp f pol mode vars None
+        | GUI -> let net = Eio.Stdenv.net env in
+                 Eio.Net.with_tcp_connect net ~host:"localhost" ~service:"31415" (fun http_flow ->
+                     exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
+                       extra_args stream prefix last_tp f pol mode vars (Some(http_flow)))
       with Exit -> Stdio.printf "Reached the end of the log file.\n");
