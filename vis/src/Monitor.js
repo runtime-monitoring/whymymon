@@ -1,4 +1,4 @@
-import React, { useState, useReducer, useRef } from "react";
+import React, { useState, useReducer, useRef, useEffect } from "react";
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
@@ -15,7 +15,7 @@ function initMonitorState () {
   return { columns: { preds: [], subfs: [], subfsScopes: [] },
            objs: { dbs: [], expls: [] },
            tables: { dbs: [], colors: [], cells: [], hovers: [] },
-           highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map() },
+           highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map(), subfsHeader: [] },
            subformulas: [],
            dialog: {},
            options: new Set()
@@ -24,13 +24,12 @@ function initMonitorState () {
 
 function initMonitor(monitorState, action) {
   try {
-    const columns = removeAngleBrackets(JSON.parse(action.columns));
-
+    console.log(action);
     return { ...monitorState,
-             columns: { preds: columns.predsColumns,
-                        subfs: columns.subfsColumns,
-                        subfsScopes: columns.subfsScopes },
-             subformulas: columns.subformulas
+             columns: { preds: action.data.predsColumns,
+                        subfs: action.data.subfsColumns,
+                        subfsScopes: action.data.subfsScopes },
+             subformulas: action.data.subformulas
            };
 
   } catch (ex) {
@@ -149,7 +148,7 @@ const BootstrapTooltip = styled(({ className, ...props }) => (
 export default function Monitor() {
 
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer, initMonitorState ());
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const nodeRef = useRef(null);
 
   const overrideCSSProperties = {
@@ -158,20 +157,33 @@ export default function Monitor() {
     borderColor: "#b2dfdb",
   };
 
-  const handleMonitor = (e) => {
-    e.preventDefault();
-    // let action = { formula: formState.formula,
-    //                trace: formState.trace,
-    //                sig: formState.sig,
-    //                type: 'initTable' };
-    // setMonitorState(action);
-  };
-
   const handleReset = (e) => {
     e.preventDefault();
     let action = { type: 'resetTable' };
     setMonitorState(action);
   }
+
+  useEffect(() => {
+    const evtSource = new EventSource("http://localhost:31415");
+    evtSource.onmessage = (event) => {
+      if (event.data) {
+        let data = JSON.parse(event.data);
+        let action;
+        if (data.formula !== undefined) {
+          action = { type: 'initTable', data: data };
+          setMonitorState(action, setLoading(false));
+        } else {
+          action = { type: 'loadViolation', data: data };
+          setMonitorState(action);
+        }
+      }
+    };
+
+    return () => {
+      evtSource.close();
+    };
+
+  }, []);
 
   return (
     <Box>
@@ -197,7 +209,7 @@ export default function Monitor() {
                  <SelectTimepoint timepoints={[]}
                                   setMonitorState={setMonitorState} />
                </Grid>
-               <Grid item xs={12} sm={3} md={3} lg={3} xl={3} spacing={2}>
+               <Grid item xs={12} sm={3} md={3} lg={3} xl={3}>
                  <ResetButton handleReset={handleReset} BootstrapTooltip={BootstrapTooltip} />
                </Grid>
                <Grid item xs={12} sm={4.5} md={4.5} lg={4.5} xl={4.5}>

@@ -115,7 +115,7 @@ function TimeGrid ({ columns,
   const tsWidth = objs.dbs.reduce ((acc, { ts, tp }) =>
     selectedOptions.has('Unix Timestamps') ?
       Math.max(acc, (9*((new Date(ts).toLocaleString()).length)))
-      : Math.max(acc, (10*(ts.toString().length))), 50
+      : Math.max(acc, (10*(ts.toString().length))), 60
   );
 
   const tptsGridColumns = [
