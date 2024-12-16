@@ -58,10 +58,8 @@ module Json = struct
                           Printf.sprintf "{\"col\": %d, \"leftCols\": %s, \"rightCols\": %s}"
                             i (Etc.int_list_to_json js) (Etc.int_list_to_json ks)) in
     let subfs = List.map (Formula.subfs_dfs f) ~f:(Formula.to_string true) in
-    Printf.sprintf "{\n  \"predsColumns\": %s,\n
-                    \"subfsColumns\": %s,\n
-                    \"subfsScopes\": [%s],\n
-                    \"subformulas\": %s }\n"
+    Printf.sprintf "{\"formula\": \"%s\", \"predsColumns\": %s, \"subfsColumns\": %s, \"subfsScopes\": [%s], \"subformulas\": %s}"
+      (Formula.to_string false f)
       (Etc.string_list_to_json sig_preds_columns) (Etc.string_list_to_json subfs_columns)
       (Etc.string_list_to_string ~sep:", " subfs_scope) (Etc.string_list_to_json subfs)
 
