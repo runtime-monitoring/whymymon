@@ -11,19 +11,17 @@ const options = [
   'Unix Timestamps',
 ];
 
-export default function SelectTimepoint({ timepoints, setMonitorState }) {
+export default function SelectViolation({ violations, setMonitorState }) {
 
-  const [timepoint, setTimepoint] = React.useState('');
+  const [violation, setViolation] = React.useState({});
 
   const handleChange = (event) => {
-    setTimepoint(event.target.value);
-    // const {
-    //   target: { value },
-    // } = event;
-
-    // let action = { type: "updateOptions",
-    //                options: value };
-    // setMonitorState(action);
+    const {
+      target: { value },
+    } = event;
+    let action = { type: "selectViolation",
+                   violation: violations[value] };
+    setMonitorState(action);
   };
 
   return (
@@ -31,15 +29,15 @@ export default function SelectTimepoint({ timepoints, setMonitorState }) {
       <FormControl sx={{ width: '100%' }}>
         <InputLabel id="checkmark-options-label">Violations</InputLabel>
         <Select
-          labelId="select-timepoint-label"
-          id="select-timepoint"
-          value={timepoint}
+          labelId="select-violation-label"
+          id="select-violation"
+          value={violation}
           onChange={handleChange}
           label="Violations"
           input={<OutlinedInput label="Violations" />}
         >
-          {timepoints.map((tp) => (
-            <MenuItem key={tp} value={tp}>{tp}</MenuItem>
+          {violations.map(i => (
+            <MenuItem key={i} value={violations[i].tp}>{violations[i].tp}</MenuItem>
           ))}
         </Select>
       </FormControl>

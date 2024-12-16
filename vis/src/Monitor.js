@@ -8,13 +8,13 @@ import ClipLoader from "react-spinners/ClipLoader";
 import TimeGrid from './components/TimeGrid';
 import ResetButton from './components/ResetButton';
 import CheckmarkOptions from './components/CheckmarkOptions';
-import SelectTimepoint from './components/SelectTimepoint';
+import SelectViolation from './components/SelectViolation';
 import { computeDbsTable, initRhsTable, initHovers, translateError, removeAngleBrackets } from './util';
 
 function initMonitorState () {
   return { columns: { preds: [], subfs: [], subfsScopes: [] },
            objs: { dbs: [], expls: [] },
-           tables: { dbs: [], colors: [], cells: [], hovers: [] },
+           tables: [],
            highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map(), subfsHeader: [] },
            subformulas: [],
            dialog: {},
@@ -24,7 +24,6 @@ function initMonitorState () {
 
 function initMonitor(monitorState, action) {
   try {
-    console.log(action);
     return { ...monitorState,
              columns: { preds: action.data.predsColumns,
                         subfs: action.data.subfsColumns,
@@ -38,14 +37,12 @@ function initMonitor(monitorState, action) {
   }
 }
 
-function execMonitor(monitorState, action) {
+function populateTable(monitorState, action) {
   try {
+    console.log(action);
 
-    const monitorOutput = JSON.parse(action.newTimepoint);
-
-    const dbsObjs = monitorOutput.dbs_objs;
-    const explsObjs = monitorOutput.expls_objs;
-    const errors = monitorOutput.errors;
+    const dbsObjs = action.data.dbs_objs;
+    const explsObjs = action.data.expls_objs;
 
     return { ...monitorState,
              objs:   { dbs: dbsObjs, expls: explsObjs },
@@ -148,6 +145,7 @@ const BootstrapTooltip = styled(({ className, ...props }) => (
 export default function Monitor() {
 
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer, initMonitorState ());
+  const [violations, setViolations] = useState([]);
   const [loading, setLoading] = useState(true);
   const nodeRef = useRef(null);
 
@@ -173,8 +171,10 @@ export default function Monitor() {
           action = { type: 'initTable', data: data };
           setMonitorState(action, setLoading(false));
         } else {
-          action = { type: 'loadViolation', data: data };
-          setMonitorState(action);
+          setViolations(oldViolations => [...oldViolations,
+                                          { dbsObjs: action.data.dbs_objs,
+                                            explsObjs: action.data.expls_objs
+                                          }]);
         }
       }
     };
@@ -206,7 +206,7 @@ export default function Monitor() {
            <Grid container spacing={1}>
              <Grid container item xs={12} sm={12} md={12} lg={12} xl={12} spacing={2}>
                <Grid item xs={12} sm={4.5} md={4.5} lg={4.5} xl={4.5}>
-                 <SelectTimepoint timepoints={[]}
+                 <SelectViolation violations={violations}
                                   setMonitorState={setMonitorState} />
                </Grid>
                <Grid item xs={12} sm={3} md={3} lg={3} xl={3}>
