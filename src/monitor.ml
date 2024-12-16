@@ -811,6 +811,18 @@ let explain prefix v pol tp f =
           else until_vio cur_tp (l,r) vars f1 f2 (tp+1) mexpl vars_map)) in
   eval [] pol tp f (Map.empty (module String))
 
+
+let send_headers http_flow =
+  Eio.Flow.copy_string "HTTP/1.1 200 OK\n" http_flow;
+  Eio.Flow.copy_string "Content-Type: text/event-stream\n" http_flow;
+  Eio.Flow.copy_string "Cache-Control: no-cache\n" http_flow;
+  Eio.Flow.copy_string "Connection: keep-alive\n" http_flow;
+  Eio.Flow.copy_string "Access-Control-Allow-Origin: *\n\n" http_flow
+
+let send_event json http_flow =
+  Eio.Flow.copy_string "event: message\n" http_flow;
+  Eio.Flow.copy_string (Printf.sprintf "data: %s\n\n" json) http_flow
+
 (* Spawn thread to execute WhyMyMon somewhere in this function *)
 let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp http_flow_opt =
   while true do
@@ -838,16 +850,16 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
             | Some http_flow ->
                (match mode with
                 | Argument.Mode.Unverified -> Eio.Flow.copy_string (Out.Json.expl ts tp f expl) http_flow
-                | Verified ->
-                   let (b, _, _) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
-                   Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
+                | Verified -> ()
+                   (* let (b, _, _) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in *)
+                   (* Out.Plain.print (ExplanationCheck ((ts, tp), expl, b)) *)
                 | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
-                | Debug ->
-                   let (b, c_e, c_trace) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
-                   Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
+                | Debug -> ()
+                   (* let (b, c_e, c_trace) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in *)
+                   (* Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace)) *)
                 | DebugVis -> ()))))
     else
-      (* (get_pos output to keep track of progress *)
+      (* get_pos output to keep track of progress *)
       (traceln "Read current progress";
        let tp = Emonitor.parse_prog_tp mon line in
        if Int.equal !last_tp tp then (Eio.Flow.copy_string "Stop\n" r_sink));
@@ -881,14 +893,16 @@ let run_emonitor mon mon_path sig_path f_path r_sink w_source proc_mgr extra_arg
 
 let exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
       extra_args stream prefix last_tp f pol mode vars http_flow_opt =
-  Fiber.all
-    [ (* Spawn thread with external monitor process *)
-      (fun () -> run_emonitor mon mon_path sig_path f_path r_sink w_source proc_mgr extra_args);
-      (* External monitor I/O management *)
-      (fun () -> traceln "Writing lines to emonitor's stdin...";
-                 write mon w_sink stream prefix last_tp);
-      (fun () -> traceln "Reading lines from emonitor's stdout...";
-                 read mon r_buf r_sink prefix f pol mode vars last_tp http_flow_opt)]
+  try
+    Fiber.all
+      [ (* Spawn thread with external monitor process *)
+        (fun () -> run_emonitor mon mon_path sig_path f_path r_sink w_source proc_mgr extra_args);
+        (* External monitor I/O management *)
+        (fun () -> traceln "Writing lines to emonitor's stdin...";
+                   write mon w_sink stream prefix last_tp);
+        (fun () -> traceln "Reading lines from emonitor's stdout...";
+                   read mon r_buf r_sink prefix f pol mode vars last_tp http_flow_opt)]
+  with Exit -> traceln "Reached the end of the log file.\n"
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
@@ -913,13 +927,21 @@ let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_a
       let prefix = ref [||]  in
       (* last time-point in the stream *)
       let last_tp = ref (-1) in
-      try
-        match interf with
-        | Argument.Interface.CLI ->
-           exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
-             extra_args stream prefix last_tp f pol mode vars None
-        | GUI -> let net = Eio.Stdenv.net env in
-                 Eio.Net.with_tcp_connect net ~host:"localhost" ~service:"31415" (fun http_flow ->
-                     exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
-                       extra_args stream prefix last_tp f pol mode vars (Some(http_flow)))
-      with Exit -> Stdio.printf "Reached the end of the log file.\n");
+      match interf with
+      | Argument.Interface.CLI ->
+         exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
+           extra_args stream prefix last_tp f pol mode vars None
+      | GUI -> let net = Eio.Stdenv.net env in
+               let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 31415) in
+               let s = Eio.Net.listen ~sw ~backlog:1 ~reuse_addr:true net addr in
+               traceln "Starting server...";
+               let http_flow, _ = Eio.Net.accept ~sw s in
+               traceln "Established connection with client";
+               send_headers http_flow;
+               send_event (Out.Json.table_columns f) http_flow;
+               (* while true do *)
+               (*   UnixLabels.sleep 5; *)
+               (*   send_event (Out.Json.table_columns f) http_flow *)
+               (*     done *)
+               exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
+                 extra_args stream prefix last_tp f pol mode vars (Some(http_flow)))
