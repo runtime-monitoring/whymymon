@@ -13,15 +13,12 @@ const options = [
 
 export default function SelectViolation({ violations, setMonitorState }) {
 
-  const [violation, setViolation] = React.useState({});
+  const [violation, setViolation] = React.useState('');
 
   const handleChange = (event) => {
-    const {
-      target: { value },
-    } = event;
     let action = { type: "selectViolation",
-                   violation: violations[value] };
-    setMonitorState(action);
+                   violation: violations[event.target.value] };
+    setViolation(event.target.value, setMonitorState(action));
   };
 
   return (
@@ -34,10 +31,10 @@ export default function SelectViolation({ violations, setMonitorState }) {
           value={violation}
           onChange={handleChange}
           label="Violations"
-          input={<OutlinedInput label="Violations" />}
+          input={<OutlinedInput label="Violations"/>}
         >
-          {violations.map(i => (
-            <MenuItem key={i} value={violations[i].tp}>{violations[i].tp}</MenuItem>
+          {violations.map((obj, index) => (
+            <MenuItem key={index} value={index}>{obj.tp}</MenuItem>
           ))}
         </Select>
       </FormControl>

@@ -849,15 +849,18 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
                 | DebugVis -> ())
             | Some http_flow ->
                (match mode with
-                | Argument.Mode.Unverified -> Eio.Flow.copy_string (Out.Json.expl ts tp f expl) http_flow
+                | Argument.Mode.Unverified ->
+                   let (etp, ltp) = (Expl.etp expl, Expl.ltp expl) in
+                   let slice = Array.sub !prefix etp (ltp - etp + 1) in
+                   let json_dbs = List.of_array (Array.mapi slice ~f:(fun i (ts, db) -> Out.Json.db ts (etp + i) db f)) in
+                   let json_expl_rows = List.of_array (Array.mapi slice ~f:(fun i (ts, _) -> Out.Json.expl_row ts tp
+                                                                                                (if Int.equal tp i then Some (f, expl)
+                                                                                                 else None))) in
+                   send_event (Out.Json.aggregate tp json_dbs json_expl_rows) http_flow
                 | Verified -> ()
-                   (* let (b, _, _) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in *)
-                   (* Out.Plain.print (ExplanationCheck ((ts, tp), expl, b)) *)
-                | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
-                | Debug -> ()
-                   (* let (b, c_e, c_trace) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in *)
-                   (* Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace)) *)
-                | DebugVis -> ()))))
+                | LaTeX
+                  | Debug
+                  | DebugVis -> ()))))
     else
       (* get_pos output to keep track of progress *)
       (traceln "Read current progress";

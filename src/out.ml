@@ -64,29 +64,29 @@ module Json = struct
       (Etc.string_list_to_string ~sep:", " subfs_scope) (Etc.string_list_to_json subfs)
 
   let db ts tp db f =
-    Printf.sprintf "%s{\n" (String.make 4 ' ') ^
-      Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
-        Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
-          Printf.sprintf "%s\n" (Vis.Dbs.to_json tp db f) ^
+    Printf.sprintf "%s{" (String.make 4 ' ') ^
+      Printf.sprintf "%s\"ts\": %d," (String.make 8 ' ') ts ^
+        Printf.sprintf "%s\"tp\": %d," (String.make 8 ' ') tp ^
+          Printf.sprintf "%s" (Vis.Dbs.to_json tp db f) ^
             Printf.sprintf "%s}" (String.make 4 ' ')
 
-  let expl ts tp f e =
-    Printf.sprintf "%s{\n" (String.make 4 ' ') ^
-      Printf.sprintf "%s\"ts\": %d,\n" (String.make 8 ' ') ts ^
-        Printf.sprintf "%s\"tp\": %d,\n" (String.make 8 ' ') tp ^
-          Printf.sprintf "%s\"expl\": {\n" (String.make 8 ' ') ^
-            Printf.sprintf "%s\n" (Vis.Expl.to_json f (Expl.sort_parts e)) ^
+  let expl_row ts tp f_e_opt =
+    Printf.sprintf "%s{" (String.make 4 ' ') ^
+      Printf.sprintf "%s\"ts\": %d," (String.make 8 ' ') ts ^
+        Printf.sprintf "%s\"tp\": %d," (String.make 8 ' ') tp ^
+          Printf.sprintf "%s\"expl\": {" (String.make 8 ' ') ^
+            (match f_e_opt with
+             | None -> ""
+             | Some (f, e) -> Printf.sprintf "%s" (Vis.Expl.to_json f (Expl.sort_parts e))) ^
               Printf.sprintf "}%s}" (String.make 4 ' ')
 
-  let aggregate dbs expls errors =
-    Printf.sprintf "{\n" ^
-      Printf.sprintf "%s\"dbs_objs\": [\n" (String.make 4 ' ') ^
-        String.concat ~sep:",\n" dbs ^
-          Printf.sprintf "],\n" ^
-            Printf.sprintf "%s\"expls_objs\": [\n" (String.make 4 ' ') ^
-              String.concat ~sep:",\n" expls ^
-                Printf.sprintf "],\n" ^
-                  Printf.sprintf "%s\"errors\": %s\n" (String.make 4 ' ') errors ^
-                    Printf.sprintf "}"
-
+  let aggregate tp dbs expl_rows =
+    Printf.sprintf "{" ^
+      Printf.sprintf "%s\"tp\": %d," (String.make 4 ' ') tp ^
+        Printf.sprintf "%s\"db_objs\": [" (String.make 4 ' ') ^
+          String.concat ~sep:"," dbs ^
+            Printf.sprintf "]," ^
+              Printf.sprintf "%s\"expl_obj\": [" (String.make 4 ' ') ^
+                String.concat ~sep:"," expl_rows ^
+                  Printf.sprintf "]}"
 end

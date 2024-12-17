@@ -41,8 +41,8 @@ function populateTable(monitorState, action) {
   try {
     console.log(action);
 
-    const dbsObjs = action.data.dbs_objs;
-    const explsObjs = action.data.expls_objs;
+    const dbsObjs = action.violation.dbs;
+    const explsObjs = action.violation.expls;
 
     return { ...monitorState,
              objs:   { dbs: dbsObjs, expls: explsObjs },
@@ -66,6 +66,8 @@ function monitorStateReducer(monitorState, action) {
   switch (action.type) {
   case 'initTable':
     return initMonitor(monitorState, action);
+  case 'selectViolation':
+    return populateTable(monitorState, action);
   case 'updateColorsAndCellsTable':
     return { ...monitorState,
              tables: { ...monitorState.tables,
@@ -172,8 +174,9 @@ export default function Monitor() {
           setMonitorState(action, setLoading(false));
         } else {
           setViolations(oldViolations => [...oldViolations,
-                                          { dbsObjs: action.data.dbs_objs,
-                                            explsObjs: action.data.expls_objs
+                                          { tp: data.tp,
+                                            dbs: data.db_objs,
+                                            expls: data.expl_objs
                                           }]);
         }
       }

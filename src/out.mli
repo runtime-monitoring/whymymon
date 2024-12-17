@@ -31,8 +31,8 @@ module Json : sig
 
   val db: timestamp -> timepoint -> Db.t -> Formula.t -> string
 
-  val expl: timestamp -> timepoint -> Formula.t -> Expl.t -> string
+  val expl_row : timestamp -> timepoint -> (Formula.t * Expl.t) option -> string
 
-  val aggregate: string list -> string list -> string -> string
+  val aggregate: timepoint ->  string list -> string list -> string
 
 end
