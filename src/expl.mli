@@ -124,8 +124,13 @@ module Proof : sig
   val v_at: vp -> int
   val p_at: t -> int
 
-  val s_ltp: sp -> int
+  val s_etp: sp -> int
   val v_etp: vp -> int
+  val etp: t -> int
+
+  val s_ltp: sp -> int
+  val v_ltp: vp -> int
+  val ltp: t -> int
 
   val s_to_string: string -> sp -> string
   val v_to_string: string -> vp -> string
@@ -180,6 +185,8 @@ val equal: t -> t -> bool
 val is_violated: t -> bool
 val at: t -> int
 val sort_parts: t -> t
+val etp: t -> int
+val ltp: t -> int
 
 val to_string: t -> string
 val opt_to_string: opt_t -> string

@@ -446,15 +446,6 @@ module Proof = struct
     | None -> None
     | Some p -> Some (p_at p)
 
-  let s_ltp = function
-    | SUntil (sp2, _) -> s_at sp2
-    | _ -> raise (Invalid_argument "s_ltp is not defined for this sp")
-
-  let v_etp = function
-    | VUntil (tp, _, vp2s) -> if Fdeque.is_empty vp2s then tp
-                              else v_at (Fdeque.peek_front_exn vp2s)
-    | _ -> raise (Invalid_argument "v_etp is not defined for this vp")
-
   let cmp f p1 p2 = f p1 <= f p2
 
   let rec s_to_string indent p =
@@ -763,6 +754,124 @@ module Proof = struct
   let opt_to_light indent = function
     | None -> "none"
     | Some p -> to_light indent p
+
+  let rec s_etp = function
+    | STT tp -> tp
+    | SEqConst (tp, _, _)
+      | SPred (tp, _, _) -> tp
+    | SNeg vp -> v_etp vp
+    | SOrL sp1 -> s_etp sp1
+    | SOrR sp2 -> s_etp sp2
+    | SAnd (sp1, sp2) -> min (s_etp sp1) (s_etp sp2)
+    | SImpL vp1 -> v_etp vp1
+    | SImpR sp2 -> s_etp sp2
+    | SIffSS (sp1, sp2) -> min (s_etp sp1) (s_etp sp2)
+    | SIffVV (vp1, vp2) -> min (v_etp vp1) (v_etp vp2)
+    | SExists (_, _, sp) -> s_etp sp
+    | SForall (_, part) -> Part.fold_left part max_int (fun a sp -> min a (s_etp sp))
+    | SPrev sp -> s_etp sp
+    | SNext sp -> s_etp sp - 1
+    | SOnce (_, sp) -> s_etp sp
+    | SEventually (tp, _) -> tp
+    | SHistoricallyOut tp -> tp
+    | SHistorically (_, etp, _) -> etp
+    | SAlways (tp, _, _) -> tp
+    | SSince (sp2, _) -> s_etp sp2
+    | SUntil (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_etp sp2
+                            else s_etp (Fdeque.peek_front_exn sp1s)
+  and v_etp = function
+    | VFF tp -> tp
+    | VEqConst (tp, _, _)
+      | VPred (tp, _, _) -> tp
+    | VNeg sp -> s_etp sp
+    | VOr (vp1, vp2) -> min (v_etp vp1) (v_etp vp2)
+    | VAndL vp1 -> v_etp vp1
+    | VAndR vp2 -> v_etp vp2
+    | VImp (sp1, vp2)
+      | VIffSV (sp1, vp2) -> min (s_etp sp1) (v_etp vp2)
+    | VIffVS (vp1, sp2) -> min (v_etp vp1) (s_etp sp2)
+    | VExists (_, part) -> Part.fold_left part max_int (fun a vp -> min a (v_etp vp))
+    | VForall (_, _, vp) -> v_etp vp
+    | VPrev vp -> v_etp vp
+    | VPrev0 -> 0
+    | VPrevOutL tp
+      | VPrevOutR tp
+      | VOnceOut tp -> tp
+    | VNextOutL tp
+      | VNextOutR tp -> tp - 1
+    | VNext vp -> v_etp vp - 1
+    | VOnce (_, etp, _) -> etp
+    | VEventually (tp, _, _) -> tp
+    | VHistorically (_, vp) -> v_etp vp
+    | VAlways (tp, _) -> tp
+    | VSinceOut tp -> tp
+    | VSince (_, vp1, _) -> v_etp vp1
+    | VSinceInf (_, etp, _) -> etp
+    | VUntil (tp, _, _)
+      | VUntilInf (tp, _, _) -> tp
+
+  let etp = function
+    | S sp -> s_etp sp
+    | V vp -> v_etp vp
+
+  let rec s_ltp = function
+    | STT tp -> tp
+    | SEqConst (tp, _, _)
+      | SPred (tp, _, _) -> tp
+    | SNeg vp -> v_ltp vp
+    | SOrL sp1 -> s_ltp sp1
+    | SOrR sp2 -> s_ltp sp2
+    | SAnd (sp1, sp2) -> max (s_ltp sp1) (s_ltp sp2)
+    | SImpL vp1 -> v_ltp vp1
+    | SImpR sp2 -> s_ltp sp2
+    | SIffSS (sp1, sp2) -> max (s_ltp sp1) (s_ltp sp2)
+    | SIffVV (vp1, vp2) -> max (v_ltp vp1) (v_ltp vp2)
+    | SExists (_, _, sp) -> s_ltp sp
+    | SForall (_, part) -> Part.fold_left part 0 (fun a sp -> max a (s_ltp sp))
+    | SPrev sp -> s_ltp sp + 1
+    | SNext sp -> s_ltp sp
+    | SOnce (tp, _) -> tp
+    | SEventually (_, sp) -> s_ltp sp
+    | SHistoricallyOut tp -> tp
+    | SHistorically (tp, _, _) -> tp
+    | SAlways (_, ltp, _) -> ltp
+    | SSince (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_ltp sp2
+                            else s_ltp (Fdeque.peek_back_exn sp1s)
+    | SUntil (sp2, _) -> s_ltp sp2
+  and v_ltp = function
+    | VFF tp -> tp
+    | VEqConst (tp, _, _)
+      | VPred (tp, _, _) -> tp
+    | VNeg sp -> s_ltp sp
+    | VOr (vp1, vp2) -> max (v_ltp vp1) (v_ltp vp2)
+    | VAndL vp1 -> v_ltp vp1
+    | VAndR vp2 -> v_ltp vp2
+    | VImp (sp1, vp2)
+      | VIffSV (sp1, vp2) -> max (s_ltp sp1) (v_ltp vp2)
+    | VIffVS (vp1, sp2) -> max (v_ltp vp1) (s_ltp sp2)
+    | VExists (_, part) -> Part.fold_left part 0 (fun a vp -> max a (v_ltp vp))
+    | VForall (_, _, vp) -> v_ltp vp
+    | VPrev vp -> v_ltp vp + 1
+    | VPrev0 -> 1
+    | VPrevOutL tp
+      | VPrevOutR tp -> tp
+    | VNextOutL tp
+      | VNextOutR tp -> tp + 1
+    | VNext vp -> v_ltp vp + 1
+    | VOnceOut tp -> tp
+    | VOnce (tp, _, _) -> tp
+    | VEventually (_, ltp, _) -> ltp
+    | VHistorically (tp, vp) -> tp
+    | VAlways (_, vp) -> v_ltp vp
+    | VSinceOut tp -> tp
+    | VSince (tp, _, _) -> tp
+    | VSinceInf (tp, _, _) -> tp
+    | VUntil (_, vp1, _) -> v_ltp vp1
+    | VUntilInf (_, ltp, _) -> ltp
+
+  let ltp = function
+    | S sp -> s_ltp sp
+    | V vp -> v_ltp vp
 
   module Size = struct
 
@@ -1151,6 +1260,14 @@ let opt_at expl =
 let rec sort_parts = function
   | Pdt.Leaf pt -> Pdt.Leaf pt
   | Node (x, part) -> Node (x, Part.map (Part.sort part) sort_parts)
+
+let rec etp = function
+  | Pdt.Leaf pt -> Proof.etp pt
+  | Node (_, part) -> Part.fold_left part max_int (fun a expl -> min a (etp expl))
+
+let rec ltp = function
+  | Pdt.Leaf pt -> Proof.ltp pt
+  | Node (_, part) -> Part.fold_left part 0 (fun a expl -> max a (ltp expl))
 
 let to_string expl = Pdt.to_string Proof.to_string "" expl
 
