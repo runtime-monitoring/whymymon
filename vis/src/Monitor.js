@@ -149,6 +149,7 @@ export default function Monitor() {
   const [monitorState, setMonitorState] = useReducer(monitorStateReducer, initMonitorState ());
   const [violations, setViolations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [canDisconnect, setCanDisconnect] = useState(false);
   const nodeRef = useRef(null);
 
   const overrideCSSProperties = {
@@ -164,26 +165,26 @@ export default function Monitor() {
   }
 
   useEffect(() => {
+
     const evtSource = new EventSource("http://localhost:31415");
     evtSource.onmessage = (event) => {
       if (event.data) {
         let data = JSON.parse(event.data);
-        let action;
-        if (data.formula !== undefined) {
-          action = { type: 'initTable', data: data };
-          setMonitorState(action, setLoading(false));
+        if (data.disconnect) {
+          setCanDisconnect(true);
         } else {
-          setViolations(oldViolations => [...oldViolations,
-                                          { tp: data.tp,
-                                            dbs: data.db_objs,
-                                            expls: data.expl_objs
-                                          }]);
+          if (data.formula !== undefined) {
+            let action = { type: 'initTable', data: data };
+            setMonitorState(action, setLoading(false));
+          } else {
+            setViolations(oldViolations => [...oldViolations,
+                                            { tp: data.tp,
+                                              dbs: data.db_objs,
+                                              expls: data.expl_objs
+                                            }]);
+          }
         }
       }
-    };
-
-    return () => {
-      evtSource.close();
     };
 
   }, []);

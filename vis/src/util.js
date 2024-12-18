@@ -217,14 +217,19 @@ export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTabl
 
 export function exposeColorsTableMain(explObj, maxRow, maxCol) {
 
+  console.log("maxRow = " + maxRow + "; maxCol = " + maxCol);
+  console.log(explObj);
+
   // Initialize empty matrix
   let colorsTable = new Array(maxRow).fill(null).map(() => Array(maxCol).fill(""));
 
   // Expose (as a black cell) the boolean subproofs
   for (let i = 0; i < explObj.table.length; ++i) {
     let tbl = explObj.table[i];
+    console.log("i = " + i);
     if (tbl.kind === "boolean" || tbl.kind === "assignment") {
       for (let j = 0; j < tbl.cells.length; ++j) {
+        console.log("j = " + j);
         colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
       }
     }

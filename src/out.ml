@@ -86,7 +86,7 @@ module Json = struct
         Printf.sprintf "%s\"db_objs\": [" (String.make 4 ' ') ^
           String.concat ~sep:"," dbs ^
             Printf.sprintf "]," ^
-              Printf.sprintf "%s\"expl_obj\": [" (String.make 4 ' ') ^
+              Printf.sprintf "%s\"expl_objs\": [" (String.make 4 ' ') ^
                 String.concat ~sep:"," expl_rows ^
                   Printf.sprintf "]}"
 end

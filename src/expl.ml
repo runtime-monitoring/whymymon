@@ -859,13 +859,16 @@ module Proof = struct
       | VNextOutR tp -> tp + 1
     | VNext vp -> v_ltp vp + 1
     | VOnceOut tp -> tp
-    | VOnce (tp, _, _) -> tp
+    | VOnce (tp, _, vps) -> if Fdeque.is_empty vps then tp
+                            else max tp (v_ltp (Fdeque.peek_back_exn vps))
     | VEventually (_, ltp, _) -> ltp
-    | VHistorically (tp, vp) -> tp
+    | VHistorically (tp, vp) -> max tp (v_ltp vp)
     | VAlways (_, vp) -> v_ltp vp
     | VSinceOut tp -> tp
-    | VSince (tp, _, _) -> tp
-    | VSinceInf (tp, _, _) -> tp
+    | VSince (tp, vp1, vp2s) -> if Fdeque.is_empty vp2s then max tp (v_ltp vp1)
+                                else max tp (max (v_ltp vp1) (v_ltp (Fdeque.peek_back_exn vp2s)))
+    | VSinceInf (tp, _, vp2s) -> if Fdeque.is_empty vp2s then tp
+                                else max tp (v_ltp (Fdeque.peek_back_exn vp2s))
     | VUntil (_, vp1, _) -> v_ltp vp1
     | VUntilInf (_, ltp, _) -> ltp
 

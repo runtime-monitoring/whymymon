@@ -819,16 +819,19 @@ let send_headers http_flow =
   Eio.Flow.copy_string "Connection: keep-alive\n" http_flow;
   Eio.Flow.copy_string "Access-Control-Allow-Origin: *\n\n" http_flow
 
-let send_event json http_flow =
+let send_data json http_flow =
   Eio.Flow.copy_string "event: message\n" http_flow;
   Eio.Flow.copy_string (Printf.sprintf "data: %s\n\n" json) http_flow
 
-(* Spawn thread to execute WhyMyMon somewhere in this function *)
 let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp http_flow_opt =
   while true do
     let line = Eio.Buf_read.line r_buf in
     traceln "Read emonitor line: %s" line;
-    if String.equal line "Stop" then raise Exit;
+    if String.equal line "Stop" then
+      ((match http_flow_opt with
+        | None -> ()
+        | Some (http_flow) -> send_data "{\"disconnect\": true}" http_flow);
+       raise Exit);
     if Emonitor.is_verdict mon line then
       (let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
        traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
@@ -851,12 +854,13 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
                (match mode with
                 | Argument.Mode.Unverified ->
                    let (etp, ltp) = (Expl.etp expl, Expl.ltp expl) in
+                   traceln "etp = %d; ltp = %d" etp ltp;
                    let slice = Array.sub !prefix etp (ltp - etp + 1) in
                    let json_dbs = List.of_array (Array.mapi slice ~f:(fun i (ts, db) -> Out.Json.db ts (etp + i) db f)) in
                    let json_expl_rows = List.of_array (Array.mapi slice ~f:(fun i (ts, _) -> Out.Json.expl_row ts tp
                                                                                                 (if Int.equal tp i then Some (f, expl)
                                                                                                  else None))) in
-                   send_event (Out.Json.aggregate tp json_dbs json_expl_rows) http_flow
+                   send_data (Out.Json.aggregate tp json_dbs json_expl_rows) http_flow
                 | Verified -> ()
                 | LaTeX
                   | Debug
@@ -905,7 +909,7 @@ let exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_m
                    write mon w_sink stream prefix last_tp);
         (fun () -> traceln "Reading lines from emonitor's stdout...";
                    read mon r_buf r_sink prefix f pol mode vars last_tp http_flow_opt)]
-  with Exit -> traceln "Reached the end of the log file.\n"
+  with Exit -> traceln "Reached the end of the log file"
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
@@ -941,10 +945,10 @@ let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_a
                let http_flow, _ = Eio.Net.accept ~sw s in
                traceln "Established connection with client";
                send_headers http_flow;
-               send_event (Out.Json.table_columns f) http_flow;
+               send_data (Out.Json.table_columns f) http_flow;
                (* while true do *)
                (*   UnixLabels.sleep 5; *)
-               (*   send_event (Out.Json.table_columns f) http_flow *)
+               (*   send_data (Out.Json.table_columns f) http_flow *)
                (*     done *)
                exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
                  extra_args stream prefix last_tp f pol mode vars (Some(http_flow)))
