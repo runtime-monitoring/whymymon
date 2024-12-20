@@ -234,8 +234,8 @@ module Proof = struct
     | SOnce (tp, sp), SOnce (tp', sp')
       | SEventually (tp, sp), SEventually (tp', sp') -> Int.equal tp tp' && s_equal sp sp'
     | SHistoricallyOut tp, SHistoricallyOut tp' -> Int.equal tp tp'
-    | SHistorically (tp, ltp, sps), SHistorically (tp', li', sps') ->
-       Int.equal tp tp' && Int.equal ltp li' &&
+    | SHistorically (tp, lrtp, sps), SHistorically (tp', li', sps') ->
+       Int.equal tp tp' && Int.equal lrtp li' &&
          Int.equal (Fdeque.length sps) (Fdeque.length sps') &&
            Etc.fdeque_for_all2_exn sps sps' ~f:(fun sp sp' -> s_equal sp sp')
     | SAlways (tp, htp, sps), SAlways (tp', hi', sps') ->
@@ -275,8 +275,8 @@ module Proof = struct
       | VNextOutR tp, VNextOutR tp'
       | VOnceOut tp, VOnceOut tp'
       | VSinceOut tp, VSinceOut tp' -> Int.equal tp tp'
-    | VOnce (tp, ltp, vps), VOnce (tp', li', vps') ->
-       Int.equal tp tp' && Int.equal ltp li' &&
+    | VOnce (tp, lrtp, vps), VOnce (tp', li', vps') ->
+       Int.equal tp tp' && Int.equal lrtp li' &&
          Int.equal (Fdeque.length vps) (Fdeque.length vps') &&
            Etc.fdeque_for_all2_exn vps vps' ~f:(fun vp vp' -> v_equal vp vp')
     | VEventually (tp, htp, vps), VEventually (tp', hi', vps') ->
@@ -290,8 +290,8 @@ module Proof = struct
        Int.equal tp tp' && v_equal vp1 vp1' &&
          Int.equal (Fdeque.length vp2s) (Fdeque.length vp2s') &&
            Etc.fdeque_for_all2_exn vp2s vp2s' ~f:(fun vp2 vp2' -> v_equal vp2 vp2')
-    | VSinceInf (tp, ltp, vp2s), VSinceInf (tp', li', vp2s') ->
-       Int.equal tp tp' && Int.equal ltp li' &&
+    | VSinceInf (tp, lrtp, vp2s), VSinceInf (tp', li', vp2s') ->
+       Int.equal tp tp' && Int.equal lrtp li' &&
          Int.equal (Fdeque.length vp2s) (Fdeque.length vp2s') &&
            Etc.fdeque_for_all2_exn vp2s vp2s' ~f:(fun vp2 vp2' -> v_equal vp2 vp2')
     | VUntilInf (tp, htp, vp2s), VUntilInf (tp', hi', vp2s') ->
@@ -364,7 +364,7 @@ module Proof = struct
     | VSince (tp, vp1, vp2s) -> V (VSince (tp,  vp1, Fdeque.enqueue_back vp2s (unV vp2)))
     | VSinceInf (tp, etp, vp2s) -> V (VSinceInf (tp, etp, Fdeque.enqueue_back vp2s (unV vp2)))
     | VUntil (tp, vp1, vp2s) -> V (VUntil (tp, vp1, Fdeque.enqueue_back vp2s (unV vp2)))
-    | VUntilInf (tp, ltp, vp2s) -> V (VUntilInf (tp, ltp, Fdeque.enqueue_back vp2s (unV vp2)))
+    | VUntilInf (tp, lrtp, vp2s) -> V (VUntilInf (tp, lrtp, Fdeque.enqueue_back vp2s (unV vp2)))
     | _ -> raise (Invalid_argument "vappend is not defined for this vp")
 
   let s_drop = function
@@ -377,9 +377,9 @@ module Proof = struct
     | VUntil (tp, vp1, vp2s) -> (match Fdeque.drop_front vp2s with
                                  | None -> None
                                  | Some(vp2s') -> Some (VUntil (tp, vp1, vp2s')))
-    | VUntilInf (tp, ltp, vp2s) -> (match Fdeque.drop_front vp2s with
+    | VUntilInf (tp, lrtp, vp2s) -> (match Fdeque.drop_front vp2s with
                                     | None -> None
-                                    | Some(vp2s') -> Some (VUntilInf (tp, ltp, vp2s)))
+                                    | Some(vp2s') -> Some (VUntilInf (tp, lrtp, vp2s)))
     | _ -> raise (Invalid_argument "vdrop is not defined for this vp")
 
   let rec s_at = function
@@ -477,7 +477,7 @@ module Proof = struct
     | SHistorically (_, etp, sps) -> Printf.sprintf "%sSHistorically{%d}{%d}\n%s" indent (s_at p) etp
                                        (Etc.deque_to_string indent' s_to_string sps)
     | SHistoricallyOut i -> Printf.sprintf "%sSHistoricallyOut{%d}" indent i
-    | SAlways (_, ltp, sps) -> Printf.sprintf "%sSAlways{%d}{%d}\n%s" indent (s_at p) ltp
+    | SAlways (_, lrtp, sps) -> Printf.sprintf "%sSAlways{%d}{%d}\n%s" indent (s_at p) lrtp
                                  (Etc.deque_to_string indent' s_to_string sps)
     | SSince (sp2, sp1s) -> Printf.sprintf "%sSSince{%d}\n%s\n%s" indent (s_at p) (s_to_string indent' sp2)
                               (Etc.deque_to_string indent' s_to_string sp1s)
@@ -512,7 +512,7 @@ module Proof = struct
     | VOnceOut i -> Printf.sprintf "%sVOnceOut{%d}" indent i
     | VOnce (_, etp, vps) -> Printf.sprintf "%sVOnce{%d}{%d}\n%s" indent (v_at p) etp
                                (Etc.deque_to_string indent' v_to_string vps)
-    | VEventually (_, ltp, vps) -> Printf.sprintf "%sVEventually{%d}{%d}\n%s" indent (v_at p) ltp
+    | VEventually (_, lrtp, vps) -> Printf.sprintf "%sVEventually{%d}{%d}\n%s" indent (v_at p) lrtp
                                      (Etc.deque_to_string indent' v_to_string vps)
     | VHistorically (_, vp) -> Printf.sprintf "%sVHistorically{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
     | VAlways (_, vp) -> Printf.sprintf "%sVAlways{%d}\n%s" indent (v_at p) (v_to_string indent' vp)
@@ -523,7 +523,7 @@ module Proof = struct
                                     (Etc.deque_to_string indent' v_to_string vp2s)
     | VUntil (_, vp1, vp2s) -> Printf.sprintf "%sVUntil{%d}\n%s\n%s" indent (v_at p)
                                  (Etc.deque_to_string indent' v_to_string vp2s) (v_to_string indent' vp1)
-    | VUntilInf (_, ltp, vp2s) -> Printf.sprintf "%sVUntilInf{%d}{%d}\n%s" indent (v_at p) ltp
+    | VUntilInf (_, lrtp, vp2s) -> Printf.sprintf "%sVUntilInf{%d}{%d}\n%s" indent (v_at p) lrtp
                                     (Etc.deque_to_string indent' v_to_string vp2s)
 
   let to_string indent = function
@@ -755,126 +755,151 @@ module Proof = struct
     | None -> "none"
     | Some p -> to_light indent p
 
-  let rec s_etp = function
+  let rec s_ertp = function
     | STT tp -> tp
     | SEqConst (tp, _, _)
       | SPred (tp, _, _) -> tp
-    | SNeg vp -> v_etp vp
-    | SOrL sp1 -> s_etp sp1
-    | SOrR sp2 -> s_etp sp2
-    | SAnd (sp1, sp2) -> min (s_etp sp1) (s_etp sp2)
-    | SImpL vp1 -> v_etp vp1
-    | SImpR sp2 -> s_etp sp2
-    | SIffSS (sp1, sp2) -> min (s_etp sp1) (s_etp sp2)
-    | SIffVV (vp1, vp2) -> min (v_etp vp1) (v_etp vp2)
-    | SExists (_, _, sp) -> s_etp sp
-    | SForall (_, part) -> Part.fold_left part max_int (fun a sp -> min a (s_etp sp))
-    | SPrev sp -> s_etp sp
-    | SNext sp -> s_etp sp - 1
-    | SOnce (_, sp) -> s_etp sp
-    | SEventually (tp, _) -> tp
+    | SNeg vp -> v_ertp vp
+    | SOrL sp1 -> s_ertp sp1
+    | SOrR sp2 -> s_ertp sp2
+    | SAnd (sp1, sp2) -> min (s_ertp sp1) (s_ertp sp2)
+    | SImpL vp1 -> v_ertp vp1
+    | SImpR sp2 -> s_ertp sp2
+    | SIffSS (sp1, sp2) -> min (s_ertp sp1) (s_ertp sp2)
+    | SIffVV (vp1, vp2) -> min (v_ertp vp1) (v_ertp vp2)
+    | SExists (_, _, sp) -> s_ertp sp
+    | SForall (_, part) -> Part.fold_left part max_int (fun acc sp -> min acc (s_ertp sp))
+    | SPrev sp -> s_ertp sp
+    | SNext sp -> s_ertp sp - 1
+    | SOnce (_, sp) -> s_ertp sp
+    | SEventually (tp, sp) -> min tp (s_ertp sp)
     | SHistoricallyOut tp -> tp
-    | SHistorically (_, etp, _) -> etp
-    | SAlways (tp, _, _) -> tp
-    | SSince (sp2, _) -> s_etp sp2
-    | SUntil (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_etp sp2
-                            else s_etp (Fdeque.peek_front_exn sp1s)
-  and v_etp = function
+    | SHistorically (tp, _, sps)
+      | SAlways (tp, _, sps) ->
+       let min_sps = Fdeque.fold sps ~init:max_int
+                       ~f:(fun acc sp -> min acc (s_ertp sp)) in
+       min tp min_sps
+    | SSince (sp2, sp1s)
+      | SUntil (sp2, sp1s) ->
+       let min_sp1s = Fdeque.fold sp1s ~init:max_int
+                        ~f:(fun acc sp1 -> min acc (s_ertp sp1)) in
+       min min_sp1s (s_ertp sp2)
+  and v_ertp = function
     | VFF tp -> tp
     | VEqConst (tp, _, _)
       | VPred (tp, _, _) -> tp
-    | VNeg sp -> s_etp sp
-    | VOr (vp1, vp2) -> min (v_etp vp1) (v_etp vp2)
-    | VAndL vp1 -> v_etp vp1
-    | VAndR vp2 -> v_etp vp2
+    | VNeg sp -> s_ertp sp
+    | VOr (vp1, vp2) -> min (v_ertp vp1) (v_ertp vp2)
+    | VAndL vp1 -> v_ertp vp1
+    | VAndR vp2 -> v_ertp vp2
     | VImp (sp1, vp2)
-      | VIffSV (sp1, vp2) -> min (s_etp sp1) (v_etp vp2)
-    | VIffVS (vp1, sp2) -> min (v_etp vp1) (s_etp sp2)
-    | VExists (_, part) -> Part.fold_left part max_int (fun a vp -> min a (v_etp vp))
-    | VForall (_, _, vp) -> v_etp vp
-    | VPrev vp -> v_etp vp
+      | VIffSV (sp1, vp2) -> min (s_ertp sp1) (v_ertp vp2)
+    | VIffVS (vp1, sp2) -> min (v_ertp vp1) (s_ertp sp2)
+    | VExists (_, part) -> Part.fold_left part max_int (fun a vp -> min a (v_ertp vp))
+    | VForall (_, _, vp) -> v_ertp vp
+    | VPrev vp -> v_ertp vp
     | VPrev0 -> 0
     | VPrevOutL tp
       | VPrevOutR tp
       | VOnceOut tp -> tp
     | VNextOutL tp
-      | VNextOutR tp -> tp - 1
-    | VNext vp -> v_etp vp - 1
-    | VOnce (_, etp, _) -> etp
-    | VEventually (tp, _, _) -> tp
-    | VHistorically (_, vp) -> v_etp vp
-    | VAlways (tp, _) -> tp
+      | VNextOutR tp -> tp
+    | VNext vp -> v_ertp vp - 1
+    | VOnce (tp, _, vps)
+      | VEventually (tp, _, vps) ->
+       let min_vps = Fdeque.fold vps ~init:max_int
+                       ~f:(fun acc vp -> min acc (v_ertp vp)) in
+       min tp min_vps
+    | VHistorically (tp, vp)
+      | VAlways (tp, vp) -> min tp (v_ertp vp)
     | VSinceOut tp -> tp
-    | VSince (_, vp1, _) -> v_etp vp1
-    | VSinceInf (_, etp, _) -> etp
-    | VUntil (tp, _, _)
-      | VUntilInf (tp, _, _) -> tp
+    | VSince (tp, vp1, vp2s)
+      | VUntil (tp, vp1, vp2s) ->
+       let min_vp2s = Fdeque.fold vp2s ~init:max_int
+                        ~f:(fun acc vp2 -> min acc (v_ertp vp2)) in
+       min tp (min min_vp2s (v_ertp vp1))
+    | VSinceInf (tp, _, vp2s)
+      | VUntilInf (tp, _, vp2s) ->
+       let min_vp2s = Fdeque.fold vp2s ~init:max_int
+                        ~f:(fun acc vp2 -> min acc (v_ertp vp2)) in
+       min tp min_vp2s
 
-  let etp = function
-    | S sp -> s_etp sp
-    | V vp -> v_etp vp
+  let ertp = function
+    | S sp -> s_ertp sp
+    | V vp -> v_ertp vp
 
-  let rec s_ltp = function
+  let rec s_lrtp = function
     | STT tp -> tp
     | SEqConst (tp, _, _)
       | SPred (tp, _, _) -> tp
-    | SNeg vp -> v_ltp vp
-    | SOrL sp1 -> s_ltp sp1
-    | SOrR sp2 -> s_ltp sp2
-    | SAnd (sp1, sp2) -> max (s_ltp sp1) (s_ltp sp2)
-    | SImpL vp1 -> v_ltp vp1
-    | SImpR sp2 -> s_ltp sp2
-    | SIffSS (sp1, sp2) -> max (s_ltp sp1) (s_ltp sp2)
-    | SIffVV (vp1, vp2) -> max (v_ltp vp1) (v_ltp vp2)
-    | SExists (_, _, sp) -> s_ltp sp
-    | SForall (_, part) -> Part.fold_left part 0 (fun a sp -> max a (s_ltp sp))
-    | SPrev sp -> s_ltp sp + 1
-    | SNext sp -> s_ltp sp
-    | SOnce (tp, _) -> tp
-    | SEventually (_, sp) -> s_ltp sp
+    | SNeg vp -> v_lrtp vp
+    | SOrL sp1 -> s_lrtp sp1
+    | SOrR sp2 -> s_lrtp sp2
+    | SAnd (sp1, sp2) -> max (s_lrtp sp1) (s_lrtp sp2)
+    | SImpL vp1 -> v_lrtp vp1
+    | SImpR sp2 -> s_lrtp sp2
+    | SIffSS (sp1, sp2) -> max (s_lrtp sp1) (s_lrtp sp2)
+    | SIffVV (vp1, vp2) -> max (v_lrtp vp1) (v_lrtp vp2)
+    | SExists (_, _, sp) -> s_lrtp sp
+    | SForall (_, part) -> Part.fold_left part 0 (fun acc sp -> max acc (s_lrtp sp))
+    | SPrev sp -> s_lrtp sp + 1
+    | SNext sp -> s_lrtp sp
+    | SOnce (_, sp) -> s_lrtp sp
+    | SEventually (tp, sp) -> max tp (s_lrtp sp)
     | SHistoricallyOut tp -> tp
-    | SHistorically (tp, _, _) -> tp
-    | SAlways (_, ltp, _) -> ltp
-    | SSince (sp2, sp1s) -> if Fdeque.is_empty sp1s then s_ltp sp2
-                            else s_ltp (Fdeque.peek_back_exn sp1s)
-    | SUntil (sp2, _) -> s_ltp sp2
-  and v_ltp = function
+    | SHistorically (tp, _, sps)
+      | SAlways (tp, _, sps) ->
+       let max_sps = Fdeque.fold sps ~init:0
+                       ~f:(fun acc sp -> max acc (s_lrtp sp)) in
+       max tp max_sps
+    | SSince (sp2, sp1s)
+      | SUntil (sp2, sp1s) ->
+       let max_sp1s = Fdeque.fold sp1s ~init:0
+                        ~f:(fun acc sp1 -> max acc (s_lrtp sp1)) in
+       max max_sp1s (s_lrtp sp2)
+  and v_lrtp = function
     | VFF tp -> tp
     | VEqConst (tp, _, _)
       | VPred (tp, _, _) -> tp
-    | VNeg sp -> s_ltp sp
-    | VOr (vp1, vp2) -> max (v_ltp vp1) (v_ltp vp2)
-    | VAndL vp1 -> v_ltp vp1
-    | VAndR vp2 -> v_ltp vp2
+    | VNeg sp -> s_lrtp sp
+    | VOr (vp1, vp2) -> max (v_lrtp vp1) (v_lrtp vp2)
+    | VAndL vp1 -> v_lrtp vp1
+    | VAndR vp2 -> v_lrtp vp2
     | VImp (sp1, vp2)
-      | VIffSV (sp1, vp2) -> max (s_ltp sp1) (v_ltp vp2)
-    | VIffVS (vp1, sp2) -> max (v_ltp vp1) (s_ltp sp2)
-    | VExists (_, part) -> Part.fold_left part 0 (fun a vp -> max a (v_ltp vp))
-    | VForall (_, _, vp) -> v_ltp vp
-    | VPrev vp -> v_ltp vp + 1
-    | VPrev0 -> 1
+      | VIffSV (sp1, vp2) -> max (s_lrtp sp1) (v_lrtp vp2)
+    | VIffVS (vp1, sp2) -> max (v_lrtp vp1) (s_lrtp sp2)
+    | VExists (_, part) -> Part.fold_left part 0 (fun a vp -> max a (v_lrtp vp))
+    | VForall (_, _, vp) -> v_lrtp vp
+    | VPrev vp -> v_lrtp vp + 1
+    | VPrev0 -> 0
     | VPrevOutL tp
-      | VPrevOutR tp -> tp
+      | VPrevOutR tp
+      | VOnceOut tp -> tp
     | VNextOutL tp
-      | VNextOutR tp -> tp + 1
-    | VNext vp -> v_ltp vp + 1
-    | VOnceOut tp -> tp
-    | VOnce (tp, _, vps) -> if Fdeque.is_empty vps then tp
-                            else max tp (v_ltp (Fdeque.peek_back_exn vps))
-    | VEventually (_, ltp, _) -> ltp
-    | VHistorically (tp, vp) -> max tp (v_ltp vp)
-    | VAlways (_, vp) -> v_ltp vp
+      | VNextOutR tp -> tp
+    | VNext vp -> v_lrtp vp
+    | VOnce (tp, _, vps)
+      | VEventually (tp, _, vps) ->
+       let max_vps = Fdeque.fold vps ~init:0
+                       ~f:(fun acc vp -> max acc (v_lrtp vp)) in
+       max tp max_vps
+    | VHistorically (tp, vp)
+      | VAlways (tp, vp) -> max tp (v_lrtp vp)
     | VSinceOut tp -> tp
-    | VSince (tp, vp1, vp2s) -> if Fdeque.is_empty vp2s then max tp (v_ltp vp1)
-                                else max tp (max (v_ltp vp1) (v_ltp (Fdeque.peek_back_exn vp2s)))
-    | VSinceInf (tp, _, vp2s) -> if Fdeque.is_empty vp2s then tp
-                                else max tp (v_ltp (Fdeque.peek_back_exn vp2s))
-    | VUntil (_, vp1, _) -> v_ltp vp1
-    | VUntilInf (_, ltp, _) -> ltp
+    | VSince (tp, vp1, vp2s)
+      | VUntil (tp, vp1, vp2s) ->
+       let max_vp2s = Fdeque.fold vp2s ~init:0
+                        ~f:(fun acc vp2 -> max acc (v_lrtp vp2)) in
+       max tp (max max_vp2s (v_lrtp vp1))
+    | VSinceInf (tp, _, vp2s)
+      | VUntilInf (tp, _, vp2s) ->
+       let max_vp2s = Fdeque.fold vp2s ~init:0
+                        ~f:(fun acc vp2 -> max acc (v_lrtp vp2)) in
+       max tp max_vp2s
 
-  let ltp = function
-    | S sp -> s_ltp sp
-    | V vp -> v_ltp vp
+  let lrtp = function
+    | S sp -> s_lrtp sp
+    | V vp -> v_lrtp vp
 
   module Size = struct
 
@@ -1264,13 +1289,13 @@ let rec sort_parts = function
   | Pdt.Leaf pt -> Pdt.Leaf pt
   | Node (x, part) -> Node (x, Part.map (Part.sort part) sort_parts)
 
-let rec etp = function
-  | Pdt.Leaf pt -> Proof.etp pt
-  | Node (_, part) -> Part.fold_left part max_int (fun a expl -> min a (etp expl))
+let rec ertp = function
+  | Pdt.Leaf pt -> Proof.ertp pt
+  | Node (_, part) -> Part.fold_left part max_int (fun a expl -> min a (ertp expl))
 
-let rec ltp = function
-  | Pdt.Leaf pt -> Proof.ltp pt
-  | Node (_, part) -> Part.fold_left part 0 (fun a expl -> max a (ltp expl))
+let rec lrtp = function
+  | Pdt.Leaf pt -> Proof.lrtp pt
+  | Node (_, part) -> Part.fold_left part 0 (fun a expl -> max a (lrtp expl))
 
 let to_string expl = Pdt.to_string Proof.to_string "" expl
 
