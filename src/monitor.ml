@@ -855,11 +855,17 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
                 | Argument.Mode.Unverified ->
                    let (ertp, lrtp) = (Expl.ertp expl, Expl.lrtp expl) in
                    traceln "ertp = %d; lrtp = %d" ertp lrtp;
+                   (if Int.equal tp 31 then
+                      Out.Plain.print (Explanation ((ts, tp), expl)));
                    let slice = Array.sub !prefix ertp (lrtp - ertp + 1) in
-                   let json_dbs = List.of_array (Array.mapi slice ~f:(fun i (ts, db) -> Out.Json.db ts (ertp + i) db f)) in
-                   let json_expl_rows = List.of_array (Array.mapi slice ~f:(fun i (ts, _) -> Out.Json.expl_row ts tp
-                                                                                                (if Int.equal tp i then Some (f, expl)
-                                                                                                 else None))) in
+                   let json_dbs = List.of_array (Array.mapi slice ~f:(fun i (ts, db) ->
+                                                     Out.Json.db ts (ertp + i) db f)) in
+                   let json_expl_rows = List.of_array
+                                          (Array.mapi slice ~f:(fun i (ts, _) ->
+                                               let ertp_i = ertp + i in
+                                               Out.Json.expl_row ts ertp_i
+                                                 (if Int.equal tp ertp_i then Some (f, expl)
+                                                  else None))) in
                    send_data (Out.Json.aggregate tp json_dbs json_expl_rows) http_flow
                 | Verified -> ()
                 | LaTeX
