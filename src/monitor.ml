@@ -223,7 +223,7 @@ let rec stop vars vars_map expl (pol: Polarity.t) = match vars, expl, pol with
 let explain prefix v pol tp f =
   (* traceln "assignment: %s" (Assignment.to_string v); *)
   (* traceln "tp = %d" tp; *)
-  let rec eval vars (pol: Polarity.t) tp (f: Formula.t) vars_map = match f with
+  let rec eval vars vars_map tp (pol: Polarity.t) (f: Formula.t) = match f with
     | TT ->
        (match pol with
         | SAT -> Pdt.Leaf (Some (Expl.Proof.S (STT tp)))
@@ -271,38 +271,38 @@ let explain prefix v pol tp f =
        (* | S  *)
        expl
     | Neg f ->
-       let expl = eval vars (Polarity.invert pol) tp f vars_map in
+       let expl = eval vars vars_map tp (Polarity.invert pol) f in
        let expl = Pdt.apply1_reduce Proof.opt_equal vars
                     (fun p_opt -> do_neg p_opt pol) expl in
        (* traceln "NEG %s expl = %s" (Polarity.to_string pol) (Expl.to_string expl); *)
        expl
     | And (f1, f2) ->
-       let expl1 = eval vars pol tp f1 vars_map in
-       let expl2 = eval vars pol tp f2 vars_map in
+       let expl1 = eval vars vars_map tp pol f1 in
+       let expl2 = eval vars vars_map tp pol f2 in
        let expl = Pdt.apply2_reduce Proof.opt_equal vars
                     (fun p1_opt p2_opt -> (do_and p1_opt p2_opt pol)) expl1 expl2 in
        (* traceln "AND expl = %s" (Expl.to_string expl); *)
        expl
     | Or (f1, f2) ->
-       let expl1 = eval vars pol tp f1 vars_map in
-       let expl2 = eval vars pol tp f2 vars_map in
+       let expl1 = eval vars vars_map tp pol f1 in
+       let expl2 = eval vars vars_map tp pol f2 in
        Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_or p1_opt p2_opt pol)) expl1 expl2
     | Imp (f1, f2) ->
-       let expl1 = eval vars pol tp f1 vars_map in
-       let expl2 = eval vars pol tp f2 vars_map in
+       let expl1 = eval vars vars_map tp pol f1 in
+       let expl2 = eval vars vars_map tp pol f2 in
        let expl = Pdt.apply2_reduce Proof.opt_equal vars
                     (fun p1_opt p2_opt -> (do_imp p1_opt p2_opt pol)) expl1 expl2 in
        (* traceln "IMP expl = %s" (Expl.to_string expl); *)
        expl
     | Iff (f1, f2) ->
-       let expl1 = eval vars pol tp f1 vars_map in
-       let expl2 = eval vars pol tp f2 vars_map in
+       let expl1 = eval vars vars_map tp pol f1 in
+       let expl2 = eval vars vars_map tp pol f2 in
        Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_iff p1_opt p2_opt pol)) expl1 expl2
     | Exists (x, tc, f) ->
        let vars_map = Map.add_exn vars_map ~key:x ~data:(Quantifier.Existential, pol) in
-       let expl = eval (vars @ [x]) pol tp f vars_map in
+       let expl = eval (vars @ [x]) vars_map tp pol f in
        let expl =
          Pdt.hide_reduce Proof.opt_equal (vars @ [x])
            (fun p_opt -> do_exists_leaf x tc p_opt)
@@ -311,7 +311,7 @@ let explain prefix v pol tp f =
        expl
     | Forall (x, tc, f) ->
        let vars_map = Map.add_exn vars_map ~key:x ~data:(Quantifier.Universal, pol) in
-       let expl = eval (vars @ [x]) pol tp f vars_map in
+       let expl = eval (vars @ [x]) vars_map tp pol f in
        Pdt.hide_reduce Proof.opt_equal (vars @ [x])
          (fun p_opt -> do_forall_leaf x tc p_opt)
          (fun part -> Proof.Size.minp_list_somes (do_forall_node x tc part)) expl
@@ -321,14 +321,14 @@ let explain prefix v pol tp f =
           | SAT -> Pdt.Leaf None
           | VIO -> Pdt.Leaf (Some (V VPrev0)))
        else
-         (let expl = eval vars pol tp f vars_map in
+         (let expl = eval vars vars_map tp pol f in
           let ts = fst (Array.get prefix tp) in
           let ts' = fst (Array.get prefix (tp-1)) in
           let expl = Pdt.apply1_reduce Proof.opt_equal vars
                        (fun p_opt -> do_prev i p_opt ts ts' pol) expl in
           expl)
     | Next (i, f) ->
-       let expl = eval vars pol tp f vars_map in
+       let expl = eval vars vars_map tp pol f in
        let ts = fst (Array.get prefix tp) in
        let ts' = fst (Array.get prefix (tp+1)) in
        let expl = Pdt.apply1_reduce Proof.opt_equal vars
@@ -432,7 +432,7 @@ let explain prefix v pol tp f =
          Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
        else
          (if ts <= r then
-            (let expl = eval vars SAT tp f vars_map in
+            (let expl = eval vars vars_map tp SAT f in
              let mexpl = Pdt.apply2_reduce Proof.opt_equal vars
                            (fun sp_opt p_opt ->
                              match p_opt with
@@ -462,7 +462,7 @@ let explain prefix v pol tp f =
                        | Second vps -> Either.first (Some (Proof.V (Proof.VOnce (cur_tp, tp+1, vps))))) mexpl)
           else
             (if ts <= r then
-               (let expl = eval vars VIO tp f vars_map in
+               (let expl = eval vars vars_map tp VIO f in
                 let mexpl = Pdt.apply2_reduce either_v_equal vars
                               (fun vp_opt p_vps ->
                                 match p_vps with
@@ -484,7 +484,7 @@ let explain prefix v pol tp f =
       Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
     else
       (if ts >= l && ts <= r then
-         (let expl = eval vars SAT tp f vars_map in
+         (let expl = eval vars vars_map tp SAT f in
           let mexpl = Pdt.apply2_reduce Proof.opt_equal vars
                         (fun sp_opt p_opt ->
                           match p_opt with
@@ -504,7 +504,7 @@ let explain prefix v pol tp f =
                 | Second vps -> Either.first (Some (Proof.V (Proof.VEventually (cur_tp, tp-1, vps))))) mexpl
     else
       (if ts >= l && ts <= r then
-         (let expl = eval vars VIO tp f vars_map in
+         (let expl = eval vars vars_map tp VIO f in
           let mexpl = Pdt.apply2_reduce either_v_equal vars
                         (fun vp_opt p_vps ->
                           match p_vps with
@@ -538,7 +538,7 @@ let explain prefix v pol tp f =
                        | Second sps -> Either.first (Some (Proof.S (Proof.SHistorically (cur_tp, tp+1, sps))))) mexpl)
           else
             (if ts <= r then
-               (let expl = eval vars SAT tp f vars_map in
+               (let expl = eval vars vars_map tp SAT f in
                 let mexpl = Pdt.apply2_reduce either_s_equal vars
                               (fun sp_opt p_sps ->
                                 match p_sps with
@@ -561,7 +561,7 @@ let explain prefix v pol tp f =
          Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
        else
          (if ts <= r then
-            (let expl = eval vars VIO tp f vars_map in
+            (let expl = eval vars vars_map tp VIO f in
              let mexpl = Pdt.apply2_reduce Proof.opt_equal vars
                            (fun sp_opt p_opt ->
                              match p_opt with
@@ -583,7 +583,7 @@ let explain prefix v pol tp f =
                 | Second sps -> Either.first (Some (Proof.S (Proof.SAlways (cur_tp, tp-1, sps))))) mexpl
     else
       (if ts >= l && ts <= r then
-         (let expl = eval vars SAT tp f vars_map in
+         (let expl = eval vars vars_map tp SAT f in
           let mexpl = Pdt.apply2_reduce either_s_equal vars
                         (fun sp_opt p_sps ->
                           match p_sps with
@@ -603,7 +603,7 @@ let explain prefix v pol tp f =
       Pdt.apply1_reduce Proof.opt_equal vars (fun p_opt -> p_opt) mexpl
     else
       (if ts >= l && ts <= r then
-         (let expl = eval vars VIO tp f vars_map in
+         (let expl = eval vars vars_map tp VIO f in
           let mexpl = Pdt.apply2_reduce Proof.opt_equal vars
                         (fun vp_opt p_opt ->
                           match p_opt with
@@ -631,8 +631,8 @@ let explain prefix v pol tp f =
        else
          (* ts is inside the interval *)
          (if ts <= r then
-            (let expl1 = eval vars SAT tp f1 vars_map in
-             let expl2 = eval vars SAT tp f2 vars_map in
+            (let expl1 = eval vars vars_map tp SAT f1 in
+             let expl2 = eval vars vars_map tp SAT f2 in
              let mexpl = Pdt.apply3_reduce either_s_equal vars
                            (fun sp1_opt sp2_opt p_sp1s ->
                              match p_sp1s with
@@ -652,7 +652,7 @@ let explain prefix v pol tp f =
              else since_sat (l,r) vars f1 f2 (tp-1) mexpl vars_map)
           else
             (* ts is between cur_tp and (not including) r *)
-            (let expl1 = eval vars SAT tp f1 vars_map in
+            (let expl1 = eval vars vars_map tp SAT f1 in
              let mexpl = Pdt.apply2_reduce either_s_equal vars
                            (fun sp1_opt p_sp1s ->
                              match p_sp1s with
@@ -685,8 +685,8 @@ let explain prefix v pol tp f =
                        | Second vp2s -> Either.first (Some (Proof.V (Proof.VSinceInf (cur_tp, tp+1, vp2s))))) mexpl)
           else
             (if ts <= r then
-               (let expl1 = eval vars VIO tp f1 vars_map in
-                let expl2 = eval vars VIO tp f2 vars_map in
+               (let expl1 = eval vars vars_map tp VIO f1 in
+                let expl2 = eval vars vars_map tp VIO f2 in
                 let mexpl = Pdt.apply3_reduce either_v_equal vars
                               (fun vp1_opt vp2_opt p_vp2s ->
                                 match p_vp2s with
@@ -706,7 +706,7 @@ let explain prefix v pol tp f =
                 if stop_either vars vars_map mexpl VIO then mexpl
                 else since_vio cur_tp (l,r) vars f1 f2 (tp-1) mexpl vars_map)
              else
-               (let expl1 = eval vars VIO tp f1 vars_map in
+               (let expl1 = eval vars vars_map tp VIO f1 in
                 let mexpl = Pdt.apply2_reduce either_v_equal vars
                               (fun vp1_opt p_vp2s ->
                                 match p_vp2s with
@@ -730,8 +730,8 @@ let explain prefix v pol tp f =
     else
       (* ts is inside the interval *)
       (if ts >= l && ts <= r then
-         (let expl1 = eval vars SAT tp f1 vars_map in
-          let expl2 = eval vars SAT tp f2 vars_map in
+         (let expl1 = eval vars vars_map tp SAT f1 in
+          let expl2 = eval vars vars_map tp SAT f2 in
           let mexpl = Pdt.apply3_reduce either_s_equal vars
                         (fun sp1_opt sp2_opt p_sp1s ->
                           match p_sp1s with
@@ -751,7 +751,7 @@ let explain prefix v pol tp f =
           else until_sat (l,r) vars f1 f2 (tp+1) mexpl vars_map)
        else
          (* ts is between cur_tp (being evaluated) and (not including) l *)
-         (let expl1 = eval vars SAT tp f1 vars_map in
+         (let expl1 = eval vars vars_map tp SAT f1 in
           let mexpl = Pdt.apply2_reduce either_s_equal vars
                         (fun sp1_opt p_sp1s ->
                           match p_sp1s with
@@ -774,8 +774,8 @@ let explain prefix v pol tp f =
                 | Second (_, vp2s) -> Either.first (Some (Proof.V (Proof.VUntilInf (cur_tp, tp-1, vp2s))))) mexpl
     else
       (if ts >= l && ts <= r then
-         (let expl1 = eval vars VIO tp f1 vars_map in
-          let expl2 = eval vars VIO tp f2 vars_map in
+         (let expl1 = eval vars vars_map tp VIO f1 in
+          let expl2 = eval vars vars_map tp VIO f2 in
           let mexpl = Pdt.apply3_reduce either_v_equal2 vars
                         (fun vp1_opt vp2_opt p_vp2s ->
                           match p_vp2s with
@@ -796,7 +796,7 @@ let explain prefix v pol tp f =
           if stop_either vars vars_map mexpl VIO then mexpl
           else until_vio cur_tp (l,r) vars f1 f2 (tp+1) mexpl vars_map)
        else
-         (let expl1 = eval vars VIO tp f1 vars_map in
+         (let expl1 = eval vars vars_map tp VIO f1 in
           let mexpl = Pdt.apply2_reduce either_v_equal2 vars
                         (fun vp1_opt p_vp2s ->
                           match p_vp2s with
@@ -809,7 +809,7 @@ let explain prefix v pol tp f =
                         expl1 mexpl in
           if stop_either vars vars_map mexpl VIO then mexpl
           else until_vio cur_tp (l,r) vars f1 f2 (tp+1) mexpl vars_map)) in
-  eval [] pol tp f (Map.empty (module String))
+  eval [] (Map.empty (module String)) tp pol f
 
 
 let send_headers http_flow =
