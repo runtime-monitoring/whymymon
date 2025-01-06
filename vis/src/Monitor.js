@@ -18,7 +18,8 @@ function initMonitorState () {
            highlights: { selectedRows: [], highlightedCells: [], pathsMap: new Map(), subfsHeader: [] },
            subformulas: [],
            dialog: {},
-           options: new Set()
+           options: new Set(),
+           ertp: 0
          }
 }
 
@@ -43,17 +44,19 @@ function populateTable(monitorState, action) {
 
     const dbsObjs = action.violation.dbs;
     const explsObjs = action.violation.expls;
+    const ertp = dbsObjs[0].tp;
 
     return { ...monitorState,
              objs:   { dbs: dbsObjs, expls: explsObjs },
-             tables: { dbs: computeDbsTable(dbsObjs, monitorState.columns.preds.length),
+             tables: { dbs: computeDbsTable(dbsObjs, monitorState.columns.preds.length, ertp),
                        colors: initRhsTable(dbsObjs, monitorState.columns.subfs),
                        cells: initRhsTable(dbsObjs, monitorState.columns.subfs),
                        hovers: initHovers(dbsObjs, monitorState.columns.subfs) },
              highlights: { selectedRows: [],
                            highlightedCells: [],
                            pathsMap: new Map(),
-                           subfsHeader: [] }
+                           subfsHeader: [] },
+             ertp: ertp
            };
 
   } catch (ex) {
@@ -221,7 +224,8 @@ export default function Monitor() {
                                    setMonitorState={setMonitorState} />
                </Grid>
                <Grid item xs={24} sm={12} md={12} lg={12} xl={12}>
-                 <TimeGrid columns={monitorState.columns}
+                 <TimeGrid ertp={monitorState.ertp}
+                           columns={monitorState.columns}
                            objs={monitorState.objs}
                            tables={monitorState.tables}
                            highlights={monitorState.highlights}

@@ -24,7 +24,8 @@ function MenuCell ({ explObj,
                      cellsTable,
                      hoversTable,
                      ts,
-                     tp,
+                     tpShifted,
+                     ertp,
                      colGridIndex,
                      curCol,
                      predsLength,
@@ -49,8 +50,9 @@ function MenuCell ({ explObj,
       let action = { type: "updateColorsAndCellsTable",
                      colorsTable: exposeColorsTableMain(selCellsObj,
                                                         colorsTable.length,
-                                                        colorsTable[0].length),
-                     cellsTable: updateCellsTableMain(selCellsObj, cellsTable),
+                                                        colorsTable[0].length,
+                                                        ertp),
+                     cellsTable: updateCellsTableMain(selCellsObj, cellsTable, ertp),
                      hoversTable: startHovers(variableNames, domainValues, hoversTable)
                    };
       setMonitorState(action);
@@ -60,8 +62,9 @@ function MenuCell ({ explObj,
         let action = { type: "updateColorsAndCellsTable",
                        colorsTable: exposeColorsTableMain(explObj,
                                                           colorsTable.length,
-                                                          colorsTable[0].length),
-                       cellsTable: updateCellsTableMain(explObj, cellsTable),
+                                                          colorsTable[0].length,
+                                                          ertp),
+                       cellsTable: updateCellsTableMain(explObj, cellsTable, ertp),
                        hoversTable: hoversTable
                    };
         setMonitorState(action);
@@ -76,7 +79,7 @@ function MenuCell ({ explObj,
           if (selPartObj.table !== undefined) {
 
             for (let i = 0; i < selPartObj.table.length; ++i) {
-              if (selPartObj.table[i].tp === tp && selPartObj.table[i].col === curCol) {
+              if (selPartObj.table[i].tp - ertp === tpShifted && selPartObj.table[i].col === curCol) {
                 cell = selPartObj.table[i];
               }
             }
@@ -86,7 +89,7 @@ function MenuCell ({ explObj,
           let children = [];
 
           for (let i = 0; i < cell.cells.length; ++i) {
-            children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + predsLength, isHighlighted: false });
+            children.push({ tpShifted: cell.cells[i].tp - ertp, col: cell.cells[i].col + predsLength, isHighlighted: false });
           }
 
           // Update header highlights
@@ -94,12 +97,12 @@ function MenuCell ({ explObj,
                                                              subfsScopes,
                                                              colorsTable.length);
 
-          let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, dbsObjs, highlights,
-                                               newSubfsHeaderHighlights, children);
+          let newHighlights = updateHighlights(ts, tpShifted, colGridIndex, cell, dbsObjs, highlights,
+                                               newSubfsHeaderHighlights, children, ertp);
 
           let action = { type: "updateColorsAndCellsTableAndHighlights",
-                         colorsTable: exposeColorsTableQuant(selPartObj, curCol + 1, subfsScopes, colorsTable),
-                         cellsTable: updateCellsTableQuant(selPartObj, curCol, cellsTable),
+                         colorsTable: exposeColorsTableQuant(selPartObj, curCol + 1, subfsScopes, colorsTable, ertp),
+                         cellsTable: updateCellsTableQuant(selPartObj, curCol, cellsTable, ertp),
                          hoversTable: updateHovers(variableNames, domainValues, curCol, subfsScopes, hoversTable),
                          selectedRows: newHighlights.selectedRows,
                          highlightedCells: newHighlights.highlightedCells,

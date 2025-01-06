@@ -6,7 +6,7 @@ export function cellColor(bool) {
   return (bool ? lightGreen[500] : red[500]);
 }
 
-export function computeDbsTable(dbsObjs, nCols, cells = []) {
+export function computeDbsTable(dbsObjs, nCols, ertp, cells = []) {
 
   let maxRow = dbsObjs.length;
   let maxCol = nCols;
@@ -17,7 +17,7 @@ export function computeDbsTable(dbsObjs, nCols, cells = []) {
   for (let tp = 0; tp < maxRow; ++tp) {
     let dbs = dbsObjs[tp].dbs_row;
     for (let j = 0; j < maxCol; ++j) {
-      if (tp === dbs[j].tp) cells[tp][j] = dbs[j].db;
+      if (tp === dbs[j].tp - ertp) cells[tp][j] = dbs[j].db;
     }
   }
 
@@ -87,25 +87,25 @@ export function getPolarity(explObj, col, pol = "") {
 
 }
 
-export function updateCellsTableMain(selCellsObj, cellsTable) {
+export function updateCellsTableMain(selCellsObj, cellsTable, ertp) {
 
   let cellsTableClone = [...cellsTable];
 
   selCellsObj.table.forEach(cell =>
-    cellsTableClone[cell.tp][cell.col] = cell
+    cellsTableClone[cell.tp - ertp][cell.col] = cell
   );
 
   return cellsTableClone;
 }
 
-export function updateCellsTableQuant(selCellsObj, curCol, cellsTable) {
+export function updateCellsTableQuant(selCellsObj, curCol, cellsTable, ertp) {
 
   let cellsTableClone = [...cellsTable];
 
   selCellsObj.table
     .filter(cell => cell.col !== curCol)
     .forEach(cell =>
-      cellsTableClone[cell.tp][cell.col] = cell
+      cellsTableClone[cell.tp - ertp][cell.col] = cell
     );
 
   return cellsTableClone;
@@ -178,7 +178,7 @@ export function initHovers(dbsObjs, subfsColumns) {
 
 }
 
-export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTable) {
+export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTable, ertp) {
 
   // Initialize empty matrix
   let colorsTableClone = structuredClone(colorsTable);
@@ -200,7 +200,7 @@ export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTabl
     if (tbl.kind === "boolean") {
       for (let j = 0; j < tbl.cells.length; ++j) {
         if (curScope.leftCols.includes(tbl.cells[j].col) || curScope.rightCols.includes(tbl.cells[j].col)) {
-          colorsTableClone[tbl.cells[j].tp][tbl.cells[j].col] = black;
+          colorsTableClone[tbl.cells[j].tp - ertp][tbl.cells[j].col] = black;
         }
       }
     }
@@ -209,13 +209,13 @@ export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTabl
   // Expose boolean verdict in quantifier subformula column
   let tblIndex = explObj.table.findIndex(tbl => tbl.col === nextCol);
   let tbl = explObj.table[tblIndex];
-  colorsTableClone[tbl.tp][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
+  colorsTableClone[tbl.tp - ertp][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
 
   return colorsTableClone;
 
 }
 
-export function exposeColorsTableMain(explObj, maxRow, maxCol) {
+export function exposeColorsTableMain(explObj, maxRow, maxCol, ertp) {
 
   console.log("maxRow = " + maxRow + "; maxCol = " + maxCol);
   console.log(explObj);
@@ -229,7 +229,6 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
     console.log("i = " + i);
     if (tbl.kind === "boolean" || tbl.kind === "assignment") {
       for (let j = 0; j < tbl.cells.length; ++j) {
-        console.log("j = " + j);
         colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
       }
     }
@@ -245,20 +244,20 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
 
 }
 
-export function updateHighlights(ts, tp, col, cell, dbsObjs, highlights, newSubfsHeaderHighlights, children) {
+export function updateHighlights(ts, tpShifted, col, cell, dbsObjs, highlights, newSubfsHeaderHighlights, children, ertp) {
 
   // Update cell highlighting
   let highlightedCells = [];
 
   for (let i = 0; i < cell.cells.length; ++i) {
-    highlightedCells.push({ tp: cell.cells[i].tp,
+    highlightedCells.push({ tpShifted: cell.cells[i].tp - ertp,
                             col: cell.cells[i].col,
                             type: newSubfsHeaderHighlights[cell.cells[i].col] });
   }
 
   // Update interval highlighting
   let lastTS = dbsObjs[dbsObjs.length - 1].ts;
-  let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, dbsObjs) : [];
+  let selRows = (cell.interval !== undefined) ? tpsIn(ts, tpShifted, cell.interval, cell.period, lastTS, dbsObjs, ertp) : [];
 
   // Update (potentially multiple) open paths to be highlighted
   let clonePathsMap = new Map(highlights.pathsMap);
@@ -268,22 +267,24 @@ export function updateHighlights(ts, tp, col, cell, dbsObjs, highlights, newSubf
   }
 
   for (let i = 0; i < children.length; ++i) {
-    clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
-                      { parent: tp.toString() + col.toString(),
+    clonePathsMap.set((children[i].tpShifted).toString() + children[i].col.toString(),
+                      { parent: tpShifted.toString() + col.toString(),
                         isHighlighted: false,
-                        tp: children[i].tp, col: children[i].col });
+                        tpShifted: children[i].tpShifted,
+                        col: children[i].col
+                      });
   }
 
-  let cur = clonePathsMap.get(tp.toString() + col.toString());
+  let cur = clonePathsMap.get(tpShifted.toString() + col.toString());
 
   if (cur === undefined) {
-    clonePathsMap.set(tp.toString() + col.toString(),
+    clonePathsMap.set(tpShifted.toString() + col.toString(),
                       { parent: null,
                         isHighlighted: true,
-                        tp: tp,
+                        tpShifted: tpShifted,
                         col: col });
   } else {
-    clonePathsMap.set(tp.toString() + col.toString(),
+    clonePathsMap.set(tpShifted.toString() + col.toString(),
                       {...cur, isHighlighted: true });
   }
 
@@ -300,7 +301,7 @@ export function updateHighlights(ts, tp, col, cell, dbsObjs, highlights, newSubf
 
 }
 
-export function tpsIn(ts, tp, interval, period, lastTS, dbs) {
+export function tpsIn(ts, tp, interval, period, lastTS, dbs, ertp) {
   const i = interval.split(',');
   const a = parseInt(i[0].slice(1));
   const bString = i[1].slice(0, i[1].length-1);
@@ -332,8 +333,8 @@ export function tpsIn(ts, tp, interval, period, lastTS, dbs) {
 
   for (let i = 0; i < dbs.length; ++i) {
     if (dbs[i].ts >= l && dbs[i].ts <= r
-        && ((period === "past" && dbs[i].tp <= tp)
-            || (period === "future" && dbs[i].tp >= tp))) {
+        && ((period === "past" && dbs[i].tp - ertp <= tp)
+            || (period === "future" && dbs[i].tp - ertp >= tp))) {
       idxs.push(i);
     }
   }
