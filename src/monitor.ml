@@ -854,9 +854,6 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
                (match mode with
                 | Argument.Mode.Unverified ->
                    let (ertp, lrtp) = (Expl.ertp expl, Expl.lrtp expl) in
-                   traceln "ertp = %d; lrtp = %d" ertp lrtp;
-                   (if Int.equal tp 31 then
-                      Out.Plain.print (Explanation ((ts, tp), expl)));
                    let slice = Array.sub !prefix ertp (lrtp - ertp + 1) in
                    let json_dbs = List.of_array (Array.mapi slice ~f:(fun i (ts, db) ->
                                                      Out.Json.db ts (ertp + i) i db f)) in
