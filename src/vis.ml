@@ -377,17 +377,17 @@ module Expl = struct
     if List.is_empty cells then " []"
     else ((Printf.sprintf " [") ^
             (String.concat ~sep:","
-               (List.map cells ~f:(fun (tp, col, _, kind) ->
+               (List.map cells ~f:(fun (row_idx, col_idx, _, kind) ->
                     (Printf.sprintf "%s{" (indent ^ (String.make 4 ' '))) ^
-                      (Printf.sprintf "%s\"tp\": %d," (indent ^ (String.make 8 ' ')) tp) ^
-                        (Printf.sprintf "%s\"col\": %d," (indent ^ (String.make 8 ' ')) col) ^
+                      (Printf.sprintf "%s\"row\": %d," (indent ^ (String.make 8 ' ')) row_idx) ^
+                        (Printf.sprintf "%s\"col\": %d," (indent ^ (String.make 8 ' ')) col_idx) ^
                           (Printf.sprintf "%s\"bool\": %b" (indent ^ (String.make 8 ' ')) (boolean kind)) ^
                             (Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))))) ^ (Printf.sprintf "]")
 
-  let rec cell_to_json indent (tp, col, ip_opt, kind) cells =
+  let rec cell_to_json indent (row_idx, col_idx, ip_opt, kind) cells =
     (Printf.sprintf "%s{" indent) ^
-      (Printf.sprintf "%s\"tp\": %d," (indent ^ (String.make 4 ' ')) tp) ^
-        (Printf.sprintf "%s\"col\": %d," (indent ^ (String.make 4 ' ')) col) ^
+      (Printf.sprintf "%s\"row\": %d," (indent ^ (String.make 4 ' ')) row_idx) ^
+        (Printf.sprintf "%s\"col\": %d," (indent ^ (String.make 4 ' ')) col_idx) ^
           (if Option.is_none ip_opt then ""
            else (let (i, p) = Option.value_exn ip_opt in
                  Printf.sprintf "%s\"interval\": \"%s\"," (indent ^ (String.make 12 ' ')) (Interval.to_string i) ^

@@ -63,11 +63,11 @@ module Json = struct
       (Etc.string_list_to_json sig_preds_columns) (Etc.string_list_to_json subfs_columns)
       (Etc.string_list_to_string ~sep:", " subfs_scope) (Etc.string_list_to_json subfs)
 
-  let db ts tp idx db f =
+  let db ts tp row db f =
     Printf.sprintf "%s{" (String.make 4 ' ') ^
       Printf.sprintf "%s\"ts\": %d," (String.make 8 ' ') ts ^
         Printf.sprintf "%s\"tp\": %d," (String.make 8 ' ') tp ^
-          Printf.sprintf "%s\"idx\": %d," (String.make 8 ' ') idx ^
+          Printf.sprintf "%s\"row\": %d," (String.make 8 ' ') row ^
             Printf.sprintf "%s" (Vis.Dbs.to_json tp db f) ^
               Printf.sprintf "%s}" (String.make 4 ' ')
 

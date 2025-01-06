@@ -24,7 +24,7 @@ function MenuCell ({ explObj,
                      cellsTable,
                      hoversTable,
                      ts,
-                     tp,
+                     rowIndex,
                      colGridIndex,
                      curCol,
                      predsLength,
@@ -76,7 +76,7 @@ function MenuCell ({ explObj,
           if (selPartObj.table !== undefined) {
 
             for (let i = 0; i < selPartObj.table.length; ++i) {
-              if (selPartObj.table[i].tp === tp && selPartObj.table[i].col === curCol) {
+              if (selPartObj.table[i].row === rowIndex && selPartObj.table[i].col === curCol) {
                 cell = selPartObj.table[i];
               }
             }
@@ -86,7 +86,7 @@ function MenuCell ({ explObj,
           let children = [];
 
           for (let i = 0; i < cell.cells.length; ++i) {
-            children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + predsLength, isHighlighted: false });
+            children.push({ row: cell.cells[i].row, col: cell.cells[i].col + predsLength, isHighlighted: false });
           }
 
           // Update header highlights
@@ -94,7 +94,7 @@ function MenuCell ({ explObj,
                                                              subfsScopes,
                                                              colorsTable.length);
 
-          let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, dbsObjs, highlights,
+          let newHighlights = updateHighlights(ts, rowIndex, colGridIndex, cell, dbsObjs, highlights,
                                                newSubfsHeaderHighlights, children);
 
           let action = { type: "updateColorsAndCellsTableAndHighlights",

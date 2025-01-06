@@ -14,10 +14,10 @@ export function computeDbsTable(dbsObjs, nCols, cells = []) {
   cells = (cells.length === 0) ? new Array(maxRow).fill(null).map(() => Array(maxCol).fill("")) : cells;
 
   // Populate cells with dbs
-  for (let tp = 0; tp < maxRow; ++tp) {
-    let dbs = dbsObjs[tp].dbs_row;
+  for (let row = 0; row < maxRow; ++row) {
+    let dbs = dbsObjs[row].dbs_row;
     for (let j = 0; j < maxCol; ++j) {
-      if (tp === dbs[j].tp) cells[tp][j] = dbs[j].db;
+      if (row === dbs[j].row) cells[row][j] = dbs[j].db;
     }
   }
 
@@ -92,7 +92,7 @@ export function updateCellsTableMain(selCellsObj, cellsTable) {
   let cellsTableClone = [...cellsTable];
 
   selCellsObj.table.forEach(cell =>
-    cellsTableClone[cell.tp][cell.col] = cell
+    cellsTableClone[cell.row][cell.col] = cell
   );
 
   return cellsTableClone;
@@ -105,7 +105,7 @@ export function updateCellsTableQuant(selCellsObj, curCol, cellsTable) {
   selCellsObj.table
     .filter(cell => cell.col !== curCol)
     .forEach(cell =>
-      cellsTableClone[cell.tp][cell.col] = cell
+      cellsTableClone[cell.row][cell.col] = cell
     );
 
   return cellsTableClone;
@@ -200,7 +200,7 @@ export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTabl
     if (tbl.kind === "boolean") {
       for (let j = 0; j < tbl.cells.length; ++j) {
         if (curScope.leftCols.includes(tbl.cells[j].col) || curScope.rightCols.includes(tbl.cells[j].col)) {
-          colorsTableClone[tbl.cells[j].tp][tbl.cells[j].col] = black;
+          colorsTableClone[tbl.cells[j].row][tbl.cells[j].col] = black;
         }
       }
     }
@@ -209,7 +209,7 @@ export function exposeColorsTableQuant(explObj, nextCol, subfsScopes, colorsTabl
   // Expose boolean verdict in quantifier subformula column
   let tblIndex = explObj.table.findIndex(tbl => tbl.col === nextCol);
   let tbl = explObj.table[tblIndex];
-  colorsTableClone[tbl.tp][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
+  colorsTableClone[tbl.row][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
 
   return colorsTableClone;
 
@@ -230,7 +230,7 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
     if (tbl.kind === "boolean" || tbl.kind === "assignment") {
       for (let j = 0; j < tbl.cells.length; ++j) {
         console.log("j = " + j);
-        colorsTable[tbl.cells[j].tp][tbl.cells[j].col] = black;
+        colorsTable[tbl.cells[j].row][tbl.cells[j].col] = black;
       }
     }
   }
@@ -239,26 +239,26 @@ export function exposeColorsTableMain(explObj, maxRow, maxCol) {
   let tbl = explObj.table[tblIndex];
 
   // Expose boolean verdict in main subformula column
-  colorsTable[tbl.tp][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
+  colorsTable[tbl.row][tbl.col] = tbl.bool ? cellColor(true) : cellColor(false);
 
   return colorsTable;
 
 }
 
-export function updateHighlights(ts, tp, col, cell, dbsObjs, highlights, newSubfsHeaderHighlights, children) {
+export function updateHighlights(ts, row, col, cell, dbsObjs, highlights, newSubfsHeaderHighlights, children) {
 
   // Update cell highlighting
   let highlightedCells = [];
 
   for (let i = 0; i < cell.cells.length; ++i) {
-    highlightedCells.push({ tp: cell.cells[i].tp,
+    highlightedCells.push({ row: cell.cells[i].row,
                             col: cell.cells[i].col,
                             type: newSubfsHeaderHighlights[cell.cells[i].col] });
   }
 
   // Update interval highlighting
   let lastTS = dbsObjs[dbsObjs.length - 1].ts;
-  let selRows = (cell.interval !== undefined) ? tpsIn(ts, tp, cell.interval, cell.period, lastTS, dbsObjs) : [];
+  let selRows = (cell.interval !== undefined) ? rowsInsideInterval(ts, row, cell.interval, cell.period, lastTS, dbsObjs) : [];
 
   // Update (potentially multiple) open paths to be highlighted
   let clonePathsMap = new Map(highlights.pathsMap);
@@ -268,22 +268,22 @@ export function updateHighlights(ts, tp, col, cell, dbsObjs, highlights, newSubf
   }
 
   for (let i = 0; i < children.length; ++i) {
-    clonePathsMap.set(children[i].tp.toString() + children[i].col.toString(),
-                      { parent: tp.toString() + col.toString(),
+    clonePathsMap.set(children[i].row.toString() + children[i].col.toString(),
+                      { parent: row.toString() + col.toString(),
                         isHighlighted: false,
-                        tp: children[i].tp, col: children[i].col });
+                        row: children[i].row, col: children[i].col });
   }
 
-  let cur = clonePathsMap.get(tp.toString() + col.toString());
+  let cur = clonePathsMap.get(row.toString() + col.toString());
 
   if (cur === undefined) {
-    clonePathsMap.set(tp.toString() + col.toString(),
+    clonePathsMap.set(row.toString() + col.toString(),
                       { parent: null,
                         isHighlighted: true,
-                        tp: tp,
+                        row: row,
                         col: col });
   } else {
-    clonePathsMap.set(tp.toString() + col.toString(),
+    clonePathsMap.set(row.toString() + col.toString(),
                       {...cur, isHighlighted: true });
   }
 
@@ -300,7 +300,7 @@ export function updateHighlights(ts, tp, col, cell, dbsObjs, highlights, newSubf
 
 }
 
-export function tpsIn(ts, tp, interval, period, lastTS, dbs) {
+export function rowsInsideInterval(ts, row, interval, period, lastTS, dbs) {
   const i = interval.split(',');
   const a = parseInt(i[0].slice(1));
   const bString = i[1].slice(0, i[1].length-1);
@@ -332,8 +332,8 @@ export function tpsIn(ts, tp, interval, period, lastTS, dbs) {
 
   for (let i = 0; i < dbs.length; ++i) {
     if (dbs[i].ts >= l && dbs[i].ts <= r
-        && ((period === "past" && dbs[i].tp <= tp)
-            || (period === "future" && dbs[i].tp >= tp))) {
+        && ((period === "past" && dbs[i].row <= row)
+            || (period === "future" && dbs[i].row >= row))) {
       idxs.push(i);
     }
   }

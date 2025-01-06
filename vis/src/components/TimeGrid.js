@@ -238,7 +238,7 @@ function TimeGrid ({ columns,
                              cellsTable={tables.cells}
                              hoversTable={tables.hovers}
                              ts={params.row.ts}
-                             tp={params.row.id}
+                             rowIndex={params.row.id}
                              colGridIndex={parseInt(params.colDef.field)}
                              curCol={i}
                              predsLength={columns.preds.length}
@@ -257,18 +257,18 @@ function TimeGrid ({ columns,
       disableClickEventBubbling: true
     }));
 
-  const rows = objs.dbs.map(({ ts, tp, idx }) =>
+  const rows = objs.dbs.map(({ ts, tp, row }) =>
     ({
-      id: idx,
+      id: row,
       tp: tp,
       ts: selectedOptions.has('Unix Timestamps') ? new Date(ts*1000).toLocaleString() : ts
     }));
 
-  const handleClick = (ts, tp, colGridIndex) => {
+  const handleClick = (ts, rowIndex, colGridIndex) => {
 
-    let cell = tables.cells[tp][colGridIndex - columns.preds.length];
+    let cell = tables.cells[rowIndex][colGridIndex - columns.preds.length];
 
-    if (cell !== undefined && tables.colors[cell.tp][cell.col] !== black) {
+    if (cell !== undefined && tables.colors[cell.row][cell.col] !== black) {
 
       // Update highlighted cells (i.e. the ones who appear after a click)
       let children = [];
@@ -277,8 +277,8 @@ function TimeGrid ({ columns,
       let cloneColorsTable = [...tables.colors];
 
       for (let i = 0; i < cell.cells.length; ++i) {
-        cloneColorsTable[cell.cells[i].tp][cell.cells[i].col] = cellColor(cell.cells[i].bool);
-        children.push({ tp: cell.cells[i].tp, col: cell.cells[i].col + columns.preds.length, isHighlighted: false });
+        cloneColorsTable[cell.cells[i].row][cell.cells[i].col] = cellColor(cell.cells[i].bool);
+        children.push({ row: cell.cells[i].row, col: cell.cells[i].col + columns.preds.length, isHighlighted: false });
       }
 
       // Update header highlights
@@ -287,7 +287,7 @@ function TimeGrid ({ columns,
                                                          subfsGridColumns.length);
 
       // Update other highlights
-      let newHighlights = updateHighlights(ts, tp, colGridIndex, cell, objs.dbs, highlights,
+      let newHighlights = updateHighlights(ts, rowIndex, colGridIndex, cell, objs.dbs, highlights,
                                            newSubfsHeaderHighlights, children);
 
       // Update state
@@ -364,7 +364,7 @@ function TimeGrid ({ columns,
 
           if (highlights.highlightedCells.length !== 0) {
             for (let i = 0; i < highlights.highlightedCells.length; ++i) {
-              if (highlights.highlightedCells[i].tp === params.row.id &&
+              if (highlights.highlightedCells[i].row === params.row.id &&
                   highlights.highlightedCells[i].col + columns.preds.length === parseInt(params.colDef.field)) {
                 if (highlights.highlightedCells[i].type === "leftHighlight") {
                   return 'cell--LeftHighlighted';
