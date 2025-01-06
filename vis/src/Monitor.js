@@ -44,6 +44,9 @@ function populateTable(monitorState, action) {
     const dbsObjs = action.violation.dbs;
     const explsObjs = action.violation.expls;
 
+    console.log("maxRow = " + dbsObjs.length);
+    console.log("maxCol = " + monitorState.columns.subfs.length);
+
     return { ...monitorState,
              objs:   { dbs: dbsObjs, expls: explsObjs },
              tables: { dbs: computeDbsTable(dbsObjs, monitorState.columns.preds.length),

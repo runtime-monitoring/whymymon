@@ -859,11 +859,11 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
                       Out.Plain.print (Explanation ((ts, tp), expl)));
                    let slice = Array.sub !prefix ertp (lrtp - ertp + 1) in
                    let json_dbs = List.of_array (Array.mapi slice ~f:(fun i (ts, db) ->
-                                                     Out.Json.db ts (ertp + i) db f)) in
+                                                     Out.Json.db ts (ertp + i) i db f)) in
                    let json_expl_rows = List.of_array
                                           (Array.mapi slice ~f:(fun i (ts, _) ->
                                                let ertp_i = ertp + i in
-                                               Out.Json.expl_row ts ertp_i
+                                               Out.Json.expl_row ts ertp
                                                  (if Int.equal tp ertp_i then Some (f, expl)
                                                   else None))) in
                    send_data (Out.Json.aggregate tp json_dbs json_expl_rows) http_flow
@@ -924,7 +924,7 @@ let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_a
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
     (* Formula conversion *)
-    let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file ^ ".mfotl") in
+    let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file) in
     traceln "Saving formula in %a" Eio.Path.pp f_path;
     Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
     (* Instantiate process/domain managers *)

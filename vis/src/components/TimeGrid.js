@@ -104,7 +104,7 @@ function TimeGrid ({ columns,
                                           predsWidth={monospacedStringWidth(p)}
                                           presentingColumn={true}
                           />,
-      renderCell: (params) => <DbCell value={tables.dbs[params.row.tp][i]} />,
+      renderCell: (params) => <DbCell value={tables.dbs[params.row.id][i]} />,
       headerAlign: 'center',
       align: 'center',
       disableClickEventBubbling: true,
@@ -230,15 +230,15 @@ function TimeGrid ({ columns,
       },
       renderCell: (params) => {
         if (f.charAt(0) === '∃' || f.charAt(0) === '∀') {
-          if (tables.cells[params.row.tp][i].kind === "partition" &&
-              (tables.colors[params.row.tp][i] === red[500]
-               || tables.colors[params.row.tp][i] === lightGreen[500])) {
-            return <MenuCell explObj={tables.cells[params.row.tp][i]}
+          if (tables.cells[params.row.id][i].kind === "partition" &&
+              (tables.colors[params.row.id][i] === red[500]
+               || tables.colors[params.row.id][i] === lightGreen[500])) {
+            return <MenuCell explObj={tables.cells[params.row.id][i]}
                              colorsTable={tables.colors}
                              cellsTable={tables.cells}
                              hoversTable={tables.hovers}
                              ts={params.row.ts}
-                             tp={params.row.tp}
+                             tp={params.row.id}
                              colGridIndex={parseInt(params.colDef.field)}
                              curCol={i}
                              predsLength={columns.preds.length}
@@ -248,8 +248,8 @@ function TimeGrid ({ columns,
                              subfsScopes={columns.subfsScopes}/>;
           }
         }
-        return <BoolCell value={tables.colors[params.row.tp][i]}
-                         onClick={() => handleClick(params.row.ts, params.row.tp, parseInt(params.colDef.field))}
+        return <BoolCell value={tables.colors[params.row.id][i]}
+                         onClick={() => handleClick(params.row.ts, params.row.id, parseInt(params.colDef.field))}
                />;
       },
       headerAlign: 'center',
@@ -257,9 +257,9 @@ function TimeGrid ({ columns,
       disableClickEventBubbling: true
     }));
 
-  const rows = objs.dbs.map(({ ts, tp }) =>
+  const rows = objs.dbs.map(({ ts, tp, idx }) =>
     ({
-      id: tp,
+      id: idx,
       tp: tp,
       ts: selectedOptions.has('Unix Timestamps') ? new Date(ts*1000).toLocaleString() : ts
     }));
@@ -357,14 +357,14 @@ function TimeGrid ({ columns,
         columns={predsGridColumns.concat(tptsGridColumns.concat(valuesGridColumn.concat(subfsGridColumns)))}
         getRowClassName={(params) => {
           if (highlights.selectedRows !== undefined &&
-              highlights.selectedRows.includes(params.row.tp)) return 'row--Highlighted';
+              highlights.selectedRows.includes(params.row.id)) return 'row--Highlighted';
           else return 'row--Plain';
         }}
         getCellClassName={(params) => {
 
           if (highlights.highlightedCells.length !== 0) {
             for (let i = 0; i < highlights.highlightedCells.length; ++i) {
-              if (highlights.highlightedCells[i].tp === params.row.tp &&
+              if (highlights.highlightedCells[i].tp === params.row.id &&
                   highlights.highlightedCells[i].col + columns.preds.length === parseInt(params.colDef.field)) {
                 if (highlights.highlightedCells[i].type === "leftHighlight") {
                   return 'cell--LeftHighlighted';
@@ -379,7 +379,7 @@ function TimeGrid ({ columns,
             }
           }
 
-          let m = highlights.pathsMap.get(params.row.tp.toString() + params.colDef.field);
+          let m = highlights.pathsMap.get(params.row.id.toString() + params.colDef.field);
           if (m !== undefined && m.isHighlighted) {
             return 'cell--PathHighlighted';
           }

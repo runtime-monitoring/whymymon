@@ -82,93 +82,93 @@ module Expl = struct
   (* skip indicates that the previous recursive call comes from, e.g., SOrL, *)
   (* which means that the next index should be incremented by 1              *)
 
-  let rec ssubfs_cell_row row idx (f: Formula.t) (p: Expl.Proof.t) : (cell_row * int) =
+  let rec ssubfs_cell_row tp_offset row idx (f: Formula.t) (p: Expl.Proof.t) : (cell_row * int) =
     match f, p with
     | TT, S (STT _) ->
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
        ((cell, []) :: row, idx)
     | EqConst _, S (SEqConst _) ->
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
        ((cell, []) :: row, idx)
     | Predicate _, S (SPred _) ->
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
        ((cell, []) :: row, idx)
     | Neg f', S (SNeg vp) ->
        let vp_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp_idx f' (V vp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
-       let cells = [(Expl.Proof.v_at vp, vp_idx, None, Boolean false)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp_idx f' (V vp) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
+       let cells = [(Expl.Proof.v_at vp - tp_offset, vp_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
     | Or (f1, f2), S (SOrL sp1) ->
        let sp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row sp1_idx f1 (S sp1) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
-       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean true)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp1_idx f1 (S sp1) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
+       let cells = [(Expl.Proof.s_at sp1 - tp_offset, sp1_idx, None, Boolean true)] in
        let skip = (cell_idx 0 f2)+1 in
        let idx' = idx'+skip in
        ((cell, cells) :: row', idx')
     | Or (f1, f2), S (SOrR sp2) ->
        let sp1_idx = idx+1 in
        let sp2_idx = (cell_idx sp1_idx f1)+1 in
-       let (row', idx') = ssubfs_cell_row row sp2_idx f2 (S sp2) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
-       let cells = [(Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp2_idx f2 (S sp2) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
+       let cells = [(Expl.Proof.s_at sp2 - tp_offset, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
     | And (f1, f2), S (SAnd (sp1, sp2)) ->
        let sp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row sp1_idx f1 (S sp1) in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp1_idx f1 (S sp1) in
        let sp2_idx = idx'+1 in
-       let (tbl'', idx'') = ssubfs_cell_row row' sp2_idx f2 (S sp2) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
-       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean true);
-                    (Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
+       let (tbl'', idx'') = ssubfs_cell_row tp_offset row' sp2_idx f2 (S sp2) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
+       let cells = [(Expl.Proof.s_at sp1 - tp_offset, sp1_idx, None, Boolean true);
+                    (Expl.Proof.s_at sp2 - tp_offset, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: tbl'', idx'')
     | Imp (f1, f2), S (SImpL (vp1)) ->
        let vp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
-       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp1_idx f1 (V vp1) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
+       let cells = [(Expl.Proof.v_at vp1 - tp_offset, vp1_idx, None, Boolean false)] in
        let skip = (cell_idx 0 f2)+1 in
        let idx' = idx'+skip in
        ((cell, cells) :: row', idx')
     | Imp (f1, f2), S (SImpR (sp2)) ->
        let sp1_idx = idx+1 in
        let sp2_idx = (cell_idx sp1_idx f1)+1 in
-       let (row', idx') = ssubfs_cell_row row sp2_idx f2 (S sp2) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
-       let cells = [(Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp2_idx f2 (S sp2) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
+       let cells = [(Expl.Proof.s_at sp2 - tp_offset, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
     | Iff (f1, f2), S (SIffSS (sp1, sp2)) ->
        let sp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row sp1_idx f1 (S sp1) in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp1_idx f1 (S sp1) in
        let sp2_idx = idx'+1 in
-       let (tbl'', idx'') = ssubfs_cell_row row' sp2_idx f2 (S sp2) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
-       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean true);
-                    (Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
+       let (tbl'', idx'') = ssubfs_cell_row tp_offset row' sp2_idx f2 (S sp2) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
+       let cells = [(Expl.Proof.s_at sp1 - tp_offset, sp1_idx, None, Boolean true);
+                    (Expl.Proof.s_at sp2 - tp_offset, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: tbl'', idx'')
     | Iff (f1, f2), S (SIffVV (vp1, vp2)) ->
        let vp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp1_idx f1 (V vp1) in
        let vp2_idx = idx'+1 in
-       let (tbl'', idx'') = ssubfs_cell_row row' vp2_idx f2 (V vp2) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
-       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false);
-                    (Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)] in
+       let (tbl'', idx'') = ssubfs_cell_row tp_offset row' vp2_idx f2 (V vp2) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
+       let cells = [(Expl.Proof.v_at vp1 - tp_offset, vp1_idx, None, Boolean false);
+                    (Expl.Proof.v_at vp2 - tp_offset, vp2_idx, None, Boolean false)] in
        ((cell, cells) :: tbl'', idx'')
     | Exists (_, _, f'), S (SExists (x, d, sp)) ->
        let sp_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row sp_idx f' (S sp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Dom.to_string d, true)) in
-       let cells = [(Expl.Proof.s_at sp, sp_idx, None, Boolean true)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp_idx f' (S sp) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Assignment (x, Dom.to_string d, true)) in
+       let cells = [(Expl.Proof.s_at sp - tp_offset, sp_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
     | Forall (_, _, f'), S (SForall (x, part)) ->
        let sps_idx = idx+1 in
        let row' = List.filter row ~f:(fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
        let (idx', part_tbl) = Expl.Part.fold_map_list part sps_idx (fun i (s, sp) ->
-                                  let (row', i') = ssubfs_cell_row row' sps_idx f' (S sp) in
-                                  let cell = (Expl.Proof.p_at p, idx, None, Boolean true) in
-                                  let cells = [(Expl.Proof.s_at sp, sps_idx, None, Boolean true)] in
+                                  let (row', i') = ssubfs_cell_row tp_offset row' sps_idx f' (S sp) in
+                                  let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean true) in
+                                  let cells = [(Expl.Proof.s_at sp - tp_offset, sps_idx, None, Boolean true)] in
                                   (max i i', (Setc.to_json s, (cell, cells) :: row'))) in
        let part = Partition (x, part_tbl) in
        let cell = (Expl.Proof.p_at p, idx, None, part) in
@@ -178,183 +178,183 @@ module Expl = struct
       | Next (i, f'), S (SNext sp)
       | Eventually (i, f'), S (SEventually (_, sp)) ->
        let sp_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row sp_idx f' (S sp) in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp_idx f' (S sp) in
        let cell = match f with Prev _
-                             | Once _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean true)
+                             | Once _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, PAST), Boolean true)
                              | Next _
-                               | Eventually _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean true)
+                               | Eventually _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, FUTURE), Boolean true)
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
-       let cells = [(Expl.Proof.s_at sp, sp_idx, None, Boolean true)] in
+       let cells = [(Expl.Proof.s_at sp - tp_offset, sp_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
     | Historically (i, f'), S (SHistorically (_, _, sps))
       | Always (i, f'), S (SAlways (_, _, sps)) ->
        let sps_idx = idx+1 in
        let (row', idx') = Fdeque.fold sps ~init:(row, sps_idx)
-                            ~f:(fun (t, _) sp -> ssubfs_cell_row t sps_idx f' (S sp)) in
-       let cell = match f with Historically _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean true)
-                             | Always _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean true)
+                            ~f:(fun (t, _) sp -> ssubfs_cell_row tp_offset t sps_idx f' (S sp)) in
+       let cell = match f with Historically _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, PAST), Boolean true)
+                             | Always _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, FUTURE), Boolean true)
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
-       let cells = Fdeque.to_list (Fdeque.map sps ~f:(fun sp -> (Expl.Proof.s_at sp, sps_idx, None, Boolean true))) in
+       let cells = Fdeque.to_list (Fdeque.map sps ~f:(fun sp -> (Expl.Proof.s_at sp - tp_offset, sps_idx, None, Boolean true))) in
        ((cell, cells) :: row', idx')
     | Since (i, f1, f2), S (SSince (sp2, sp1s))
       | Until (i, f1, f2), S (SUntil (sp2, sp1s)) when Fdeque.is_empty sp1s ->
        let sp1_idx = idx+1 in
        (* Recursive calls *)
        let sp2_idx = (cell_idx sp1_idx f1)+1 in
-       let (row', idx') = ssubfs_cell_row row sp2_idx f2 (S sp2) in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp2_idx f2 (S sp2) in
        (* State update *)
-       let cell = match f with Since _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean true)
-                             | Until _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean true)
+       let cell = match f with Since _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, PAST), Boolean true)
+                             | Until _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, FUTURE), Boolean true)
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
-       let cells = [(Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
+       let cells = [(Expl.Proof.s_at sp2 - tp_offset, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
     | Since (i, f1, f2), S (SSince (sp2, sp1s))
       | Until (i, f1, f2), S (SUntil (sp2, sp1s)) ->
        let sp1_idx = idx+1 in
        (* Recursive calls *)
        let (row', idx') = Fdeque.fold sp1s ~init:(row, sp1_idx)
-                            ~f:(fun (t, _) sp1 -> ssubfs_cell_row t sp1_idx f1 (S sp1)) in
+                            ~f:(fun (t, _) sp1 -> ssubfs_cell_row tp_offset t sp1_idx f1 (S sp1)) in
        let sp2_idx = idx'+1 in
-       let (tbl'', idx'') = ssubfs_cell_row row' sp2_idx f2 (S sp2) in
+       let (tbl'', idx'') = ssubfs_cell_row tp_offset row' sp2_idx f2 (S sp2) in
        (* State update *)
-       let cell = match f with Since _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean true)
-                             | Until _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean true)
+       let cell = match f with Since _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, PAST), Boolean true)
+                             | Until _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, FUTURE), Boolean true)
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
-       let cells = (Expl.Proof.s_at sp2, sp2_idx, None, Boolean true) ::
+       let cells = (Expl.Proof.s_at sp2 - tp_offset, sp2_idx, None, Boolean true) ::
                      (Fdeque.to_list (Fdeque.map sp1s ~f:(fun sp1 ->
-                                          (Expl.Proof.s_at sp1, sp1_idx, None, Boolean true)))) in
+                                          (Expl.Proof.s_at sp1 - tp_offset, sp1_idx, None, Boolean true)))) in
        ((cell, cells) :: tbl'', idx'')
     | FF, V (VFF _) ->
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
        ((cell, []) :: row, idx)
     | EqConst _, V (VEqConst _) ->
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
        ((cell, []) :: row, idx)
     | Predicate _, V (VPred _) ->
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
        ((cell, []) :: row, idx)
     | Neg f', V (VNeg sp) ->
        let sp_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row sp_idx f' (S sp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
-       let cells = [(Expl.Proof.s_at sp, sp_idx, None, Boolean true)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp_idx f' (S sp) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
+       let cells = [(Expl.Proof.s_at sp - tp_offset, sp_idx, None, Boolean true)] in
        ((cell, cells) :: row', idx')
     | Or (f1, f2), V (VOr (vp1, vp2)) ->
        let vp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp1_idx f1 (V vp1) in
        let vp2_idx = idx'+1 in
-       let (tbl'', idx'') = ssubfs_cell_row row' vp2_idx f2 (V vp2) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
-       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false);
-                    (Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)] in
+       let (tbl'', idx'') = ssubfs_cell_row tp_offset row' vp2_idx f2 (V vp2) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
+       let cells = [(Expl.Proof.v_at vp1 - tp_offset, vp1_idx, None, Boolean false);
+                    (Expl.Proof.v_at vp2 - tp_offset, vp2_idx, None, Boolean false)] in
        ((cell, cells) :: tbl'', idx'')
     | And (f1, f2), V (VAndL vp1) ->
        let vp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
-       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp1_idx f1 (V vp1) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
+       let cells = [(Expl.Proof.v_at vp1 - tp_offset, vp1_idx, None, Boolean false)] in
        let skip = (cell_idx 0 f2)+1 in
        let idx' = idx'+skip in
        ((cell, cells) :: row', idx')
     | And (f1, f2), V (VAndR vp2) ->
        let vp1_idx = idx+1 in
        let vp2_idx = (cell_idx vp1_idx f1)+1 in
-       let (row', idx') = ssubfs_cell_row row vp2_idx f2 (V vp2) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
-       let cells = [(Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp2_idx f2 (V vp2) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
+       let cells = [(Expl.Proof.v_at vp2 - tp_offset, vp2_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
     | Imp (f1, f2), V (VImp (sp1, vp2))
       | Iff (f1, f2), V (VIffSV (sp1, vp2)) ->
        let sp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row sp1_idx f1 (S sp1) in
+       let (row', idx') = ssubfs_cell_row tp_offset row sp1_idx f1 (S sp1) in
        let vp2_idx = idx'+1 in
-       let (tbl'', idx'') = ssubfs_cell_row row' vp2_idx f2 (V vp2) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
-       let cells = [(Expl.Proof.s_at sp1, sp1_idx, None, Boolean true);
-                    (Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)] in
+       let (tbl'', idx'') = ssubfs_cell_row tp_offset row' vp2_idx f2 (V vp2) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
+       let cells = [(Expl.Proof.s_at sp1 - tp_offset, sp1_idx, None, Boolean true);
+                    (Expl.Proof.v_at vp2 - tp_offset, vp2_idx, None, Boolean false)] in
        ((cell, cells) :: tbl'', idx'')
     | Iff (f1, f2), V (VIffVS (vp1, sp2)) ->
        let vp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp1_idx f1 (V vp1) in
        let sp2_idx = idx'+1 in
-       let (tbl'', idx'') = ssubfs_cell_row row' sp2_idx f2 (S sp2) in
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
-       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false);
-                    (Expl.Proof.s_at sp2, sp2_idx, None, Boolean true)] in
+       let (tbl'', idx'') = ssubfs_cell_row tp_offset row' sp2_idx f2 (S sp2) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
+       let cells = [(Expl.Proof.v_at vp1 - tp_offset, vp1_idx, None, Boolean false);
+                    (Expl.Proof.s_at sp2 - tp_offset, sp2_idx, None, Boolean true)] in
        ((cell, cells) :: tbl'', idx'')
     | Exists (_, _, f'), V (VExists (x, part)) ->
        let vps_idx = idx+1 in
        let row' = List.filter row ~f:(fun (cell, _) -> not (String.equal (cell_kind cell) "partition")) in
        let (idx', part_tbl) = Expl.Part.fold_map_list part vps_idx (fun i (s, vp) ->
-                                  let (row', i') = ssubfs_cell_row row' vps_idx f' (V vp) in
-                                  let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
-                                  let cells = [(Expl.Proof.v_at vp, vps_idx, None, Boolean false)] in
+                                  let (row', i') = ssubfs_cell_row tp_offset row' vps_idx f' (V vp) in
+                                  let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
+                                  let cells = [(Expl.Proof.v_at vp - tp_offset, vps_idx, None, Boolean false)] in
                                   (max i i', (Setc.to_json s, (cell, cells) :: row'))) in
        let part = Partition (x, part_tbl) in
-       let cell = (Expl.Proof.p_at p, idx, None, part) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, part) in
        ((cell, []) :: row, idx')
     | Forall (_, _, f'), V (VForall (x, d, vp)) ->
        let vp_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp_idx f' (V vp) in
-       let cell = (Expl.Proof.p_at p, idx, None, Assignment (x, Dom.to_string d, false)) in
-       let cells = [(Expl.Proof.v_at vp, vp_idx, None, Boolean false)] in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp_idx f' (V vp) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Assignment (x, Dom.to_string d, false)) in
+       let cells = [(Expl.Proof.v_at vp - tp_offset, vp_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
     | Prev (i, f'), V (VPrev vp)
       | Historically (i, f'), V (VHistorically (_, vp))
       | Next (i, f'), V (VNext vp)
       | Always (i, f'), V (VAlways (_, vp)) ->
        let vp_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp_idx f' (V vp) in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp_idx f' (V vp) in
        let cell = match f with Prev _
-                             | Historically _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean false)
+                             | Historically _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, PAST), Boolean false)
                              | Always _
-                               | Next _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean false)
+                               | Next _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, FUTURE), Boolean false)
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
-       let cells = [(Expl.Proof.v_at vp, vp_idx, None, Boolean false)] in
+       let cells = [(Expl.Proof.v_at vp - tp_offset, vp_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
     | Once (i, f'), V (VOnce (_, _, vps))
       | Eventually (i, f'), V (VEventually (_, _, vps)) ->
        let vps_idx = idx+1 in
        let (row', idx') = Fdeque.fold vps ~init:(row, vps_idx)
-                            ~f:(fun (t, _) vp -> ssubfs_cell_row t vps_idx f' (V vp)) in
-       let cell = match f with Once _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean false)
-                             | Eventually _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean false)
+                            ~f:(fun (t, _) vp -> ssubfs_cell_row tp_offset t vps_idx f' (V vp)) in
+       let cell = match f with Once _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, PAST), Boolean false)
+                             | Eventually _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, FUTURE), Boolean false)
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
-       let cells = Fdeque.to_list (Fdeque.map vps ~f:(fun vp -> (Expl.Proof.v_at vp, vps_idx, None, Boolean false))) in
+       let cells = Fdeque.to_list (Fdeque.map vps ~f:(fun vp -> (Expl.Proof.v_at vp - tp_offset, vps_idx, None, Boolean false))) in
        ((cell, cells) :: row', idx')
     | Since (i, f1, _), V (VSince (_, vp1, vp2s))
       | Until (i, f1, _), V (VUntil (_, vp1, vp2s)) when Fdeque.is_empty vp2s ->
        let vp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
-       let cell = match f with Since _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean false)
-                             | Until _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean false)
+       let (row', idx') = ssubfs_cell_row tp_offset row vp1_idx f1 (V vp1) in
+       let cell = match f with Since _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, PAST), Boolean false)
+                             | Until _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, FUTURE), Boolean false)
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
-       let cells = [(Expl.Proof.v_at vp1, vp1_idx, None, Boolean false)] in
+       let cells = [(Expl.Proof.v_at vp1 - tp_offset, vp1_idx, None, Boolean false)] in
        ((cell, cells) :: row', idx')
     | Since (i, f1, f2), V (VSince (_, vp1, vp2s))
       | Until (i, f1, f2), V (VUntil (_, vp1, vp2s)) ->
        let vp1_idx = idx+1 in
-       let (row', idx') = ssubfs_cell_row row vp1_idx f1 (V vp1) in
+       let (row', idx') = ssubfs_cell_row tp_offset row vp1_idx f1 (V vp1) in
        let vp2_idx = idx'+1 in
        let (tbl'', idx'') = Fdeque.fold vp2s ~init:(row', vp2_idx)
-                              ~f:(fun (t, _) vp2 -> ssubfs_cell_row t vp2_idx f2 (V vp2)) in
-       let cell = match f with Since _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean false)
-                             | Until _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean false)
+                              ~f:(fun (t, _) vp2 -> ssubfs_cell_row tp_offset t vp2_idx f2 (V vp2)) in
+       let cell = match f with Since _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, PAST), Boolean false)
+                             | Until _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, FUTURE), Boolean false)
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
-       let cells = (Expl.Proof.v_at vp1, vp1_idx, None, Boolean false) ::
+       let cells = (Expl.Proof.v_at vp1 - tp_offset, vp1_idx, None, Boolean false) ::
                      (Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp2 ->
-                                          (Expl.Proof.v_at vp2, vp2_idx, None, Boolean false)))) in
+                                          (Expl.Proof.v_at vp2 - tp_offset, vp2_idx, None, Boolean false)))) in
        ((cell, cells) :: tbl'', idx'')
     | Since (i, f1, f2), V (VSinceInf (_, _, vp2s))
       | Until (i, f1, f2), V (VUntilInf (_, _, vp2s)) ->
        let vp1_idx = idx+1 in
        let vp2_idx = (cell_idx vp1_idx f1)+1 in
        let (row', idx') = Fdeque.fold vp2s ~init:(row, vp2_idx)
-                            ~f:(fun (t, _) vp2 -> ssubfs_cell_row t vp2_idx f2 (V vp2)) in
-       let cell = match f with Since _ -> (Expl.Proof.p_at p, idx, Some(i, PAST), Boolean false)
-                             | Until _ -> (Expl.Proof.p_at p, idx, Some(i, FUTURE), Boolean false)
+                            ~f:(fun (t, _) vp2 -> ssubfs_cell_row tp_offset t vp2_idx f2 (V vp2)) in
+       let cell = match f with Since _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, PAST), Boolean false)
+                             | Until _ -> (Expl.Proof.p_at p - tp_offset, idx, Some(i, FUTURE), Boolean false)
                              | _ -> raise (Invalid_argument "unexpected proof constructor") in
-       let cells = Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp2 -> (Expl.Proof.v_at vp2, vp2_idx, None, Boolean false))) in
+       let cells = Fdeque.to_list (Fdeque.map vp2s ~f:(fun vp2 -> (Expl.Proof.v_at vp2 - tp_offset, vp2_idx, None, Boolean false))) in
        ((cell, cells) :: row', idx')
     | Historically (_, _), S (SHistoricallyOut _)
       | Once (_, _), V (VOnceOut _)
@@ -364,13 +364,14 @@ module Expl = struct
       | Next (_, _), V (VNextOutL _)
       | Next (_, _), V (VNextOutR _)
       | Since (_, _, _), V (VSinceOut _) ->
-       let cell = (Expl.Proof.p_at p, idx, None, Boolean false) in
+       let cell = (Expl.Proof.p_at p - tp_offset, idx, None, Boolean false) in
        ((cell, []) :: row, idx)
     | _ -> raise (Invalid_argument "invalid formula/proof pair")
 
-  let rec expl_cell row idx (f: Formula.t) expl : cell_expl = match expl with
-    | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row row idx f pt)))
-    | Node (x, part) -> Expl (x, Expl.Part.map2_list (Expl.Part.rev part) (fun (s, e) -> (Setc.to_json s, expl_cell row idx f e)))
+  let rec expl_cell tp_offset row idx (f: Formula.t) expl : cell_expl = match expl with
+    | Expl.Pdt.Leaf pt -> Leaf (Expl.Proof.isS pt, (fst (ssubfs_cell_row tp_offset row idx f pt)))
+    | Node (x, part) -> Expl (x, Expl.Part.map2_list (Expl.Part.rev part) (fun (s, e) ->
+                                     (Setc.to_json s, expl_cell tp_offset row idx f e)))
 
   let inner_cells_to_json indent cells =
     if List.is_empty cells then " []"
@@ -443,8 +444,8 @@ module Expl = struct
                              Printf.sprintf "%s}" (indent ^ (String.make 4 ' '))))) ^
                  (Printf.sprintf "]")
 
-let to_json (f: Formula.t) expl =
-  let c_e = expl_cell [] 0 f expl in
+let to_json (f: Formula.t) expl tp_offset =
+  let c_e = expl_cell tp_offset [] 0 f expl in
   e_cell_to_json (String.make 8 ' ') c_e
 
 end

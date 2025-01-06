@@ -29,9 +29,9 @@ module Json : sig
 
   val table_columns: Formula.t -> string
 
-  val db: timestamp -> timepoint -> Db.t -> Formula.t -> string
+  val db: timestamp -> timepoint -> int -> Db.t -> Formula.t -> string
 
-  val expl_row : timestamp -> timepoint -> (Formula.t * Expl.t) option -> string
+  val expl_row : timestamp -> int -> (Formula.t * Expl.t) option -> string
 
   val aggregate: timepoint ->  string list -> string list -> string
 

@@ -63,22 +63,22 @@ module Json = struct
       (Etc.string_list_to_json sig_preds_columns) (Etc.string_list_to_json subfs_columns)
       (Etc.string_list_to_string ~sep:", " subfs_scope) (Etc.string_list_to_json subfs)
 
-  let db ts tp db f =
+  let db ts tp idx db f =
     Printf.sprintf "%s{" (String.make 4 ' ') ^
       Printf.sprintf "%s\"ts\": %d," (String.make 8 ' ') ts ^
         Printf.sprintf "%s\"tp\": %d," (String.make 8 ' ') tp ^
-          Printf.sprintf "%s" (Vis.Dbs.to_json tp db f) ^
-            Printf.sprintf "%s}" (String.make 4 ' ')
+          Printf.sprintf "%s\"idx\": %d," (String.make 8 ' ') idx ^
+            Printf.sprintf "%s" (Vis.Dbs.to_json tp db f) ^
+              Printf.sprintf "%s}" (String.make 4 ' ')
 
-  let expl_row ts tp f_e_opt =
+  let expl_row ts tp_offset f_e_opt =
     Printf.sprintf "%s{" (String.make 4 ' ') ^
       Printf.sprintf "%s\"ts\": %d," (String.make 8 ' ') ts ^
-        Printf.sprintf "%s\"tp\": %d," (String.make 8 ' ') tp ^
-          Printf.sprintf "%s\"expl\": {" (String.make 8 ' ') ^
-            (match f_e_opt with
-             | None -> ""
-             | Some (f, e) -> Printf.sprintf "%s" (Vis.Expl.to_json f (Expl.sort_parts e))) ^
-              Printf.sprintf "}%s}" (String.make 4 ' ')
+        Printf.sprintf "%s\"expl\": {" (String.make 8 ' ') ^
+          (match f_e_opt with
+           | None -> ""
+           | Some (f, e) -> Printf.sprintf "%s" (Vis.Expl.to_json f (Expl.sort_parts e) tp_offset)) ^
+            Printf.sprintf "}%s}" (String.make 4 ' ')
 
   let aggregate tp dbs expl_rows =
     Printf.sprintf "{" ^
