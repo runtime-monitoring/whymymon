@@ -39,13 +39,9 @@ function initMonitor(monitorState, action) {
 
 function populateTable(monitorState, action) {
   try {
-    console.log(action);
 
     const dbsObjs = action.violation.dbs;
     const explsObjs = action.violation.expls;
-
-    console.log("maxRow = " + dbsObjs.length);
-    console.log("maxCol = " + monitorState.columns.subfs.length);
 
     return { ...monitorState,
              objs:   { dbs: dbsObjs, expls: explsObjs },
