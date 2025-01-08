@@ -1270,8 +1270,14 @@ let rec is_violated = function
 let rec opt_is_violated = function
   | Pdt.Leaf l -> (match l with
                    | Some (Proof.V _) -> true
-                   | None -> false)
+                   | _ -> false)
   | Node (x, part) -> Part.exists part opt_is_violated
+
+let rec opt_is_none = function
+  | Pdt.Leaf l -> (match l with
+                   | None -> true
+                   | Some _ -> false)
+  | Node (x, part) -> Part.for_all part opt_is_violated
 
 let at expl =
   let rec at_rec = function
