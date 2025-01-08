@@ -287,8 +287,8 @@ let explain prefix v pol tp f =
          (fun p1_opt p2_opt -> (do_or p1_opt p2_opt pol)) expl1 expl2
     | Imp (f1, f2) ->
        let expl1 = eval vars vars_map tp (Polarity.invert pol) f1 in
-       (match pol, Expl.opt_is_violated expl1 with
-        | VIO, true -> Pdt.Leaf None
+       (match pol, Expl.opt_is_satisfied expl1 with
+        | VIO, false -> Pdt.Leaf None
         | _ -> let expl2 = eval vars vars_map tp pol f2 in
                let expl = Pdt.apply2_reduce Proof.opt_equal vars
                             (fun p1_opt p2_opt -> (do_imp p1_opt p2_opt pol)) expl1 expl2 in
@@ -296,14 +296,23 @@ let explain prefix v pol tp f =
                expl)
     | Iff (f1, f2) ->
        let (expl1, expl2) =
-         let s_e1 = eval vars vars_map tp pol f1 in
-         if Expl.opt_is_none s_e1 then
-           (let v_e1 = eval vars vars_map tp (Polarity.invert pol) f1 in
-            let v_e2 = eval vars vars_map tp (Polarity.invert pol) f2 in
-            (v_e1, v_e2))
-         else
-           (let s_e2 = eval vars vars_map tp pol f2 in
-            (s_e1, s_e2)) in
+         (match pol with
+          | SAT -> let s_e1 = eval vars vars_map tp SAT f1 in
+                   if Expl.opt_is_none s_e1 then
+                     (let v_e1 = eval vars vars_map tp VIO f1 in
+                      let v_e2 = eval vars vars_map tp VIO f2 in
+                      (v_e1, v_e2))
+                   else
+                     (let s_e2 = eval vars vars_map tp SAT f2 in
+                      (s_e1, s_e2))
+          | VIO -> let s_e1 = eval vars vars_map tp SAT f1 in
+                   if Expl.opt_is_none s_e1 then
+                     (let v_e1 = eval vars vars_map tp VIO f1 in
+                      let s_e2 = eval vars vars_map tp SAT f2 in
+                      (v_e1, s_e2))
+                   else
+                     (let v_e2 = eval vars vars_map tp VIO f2 in
+                      (s_e1, v_e2))) in
        Pdt.apply2_reduce Proof.opt_equal vars
          (fun p1_opt p2_opt -> (do_iff p1_opt p2_opt pol)) expl1 expl2
     | Exists (x, tc, f) ->

@@ -1273,6 +1273,12 @@ let rec opt_is_violated = function
                    | _ -> false)
   | Node (x, part) -> Part.exists part opt_is_violated
 
+let rec opt_is_satisfied = function
+  | Pdt.Leaf l -> (match l with
+                   | Some (Proof.S _) -> true
+                   | _ -> false)
+  | Node (x, part) -> Part.exists part opt_is_violated
+
 let rec opt_is_none = function
   | Pdt.Leaf l -> (match l with
                    | None -> true
