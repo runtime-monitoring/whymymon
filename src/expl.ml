@@ -21,7 +21,7 @@ module Part = struct
 
   let random_empty_set = Set.empty (module String)
 
-  let trivial p = [(Setc.univ (module Dom), p)]
+  let trivial e = [(Setc.univ (module Dom), e)]
 
   let hd part = snd (List.hd_exn part)
 
@@ -29,29 +29,37 @@ module Part = struct
 
   let rev part = List.rev part
 
-  let map part f = List.map part ~f:(fun (s, p) -> (s, f p))
+  let map part f = List.map part ~f:(fun (s, e) -> (s, f e))
 
-  let map2 part f = List.map part ~f:(fun (s, p) -> f (s, p))
+  let map2 part f = List.map part ~f:(fun (s, e) -> f (s, e))
 
   let map2_list = map2
 
-  let fold_left part init f = List.fold_left part ~init:init ~f:(fun acc (_, p) -> f acc p)
+  let fold_left part init f = List.fold_left part ~init:init ~f:(fun acc (_, e) -> f acc e)
 
   let fold_map_list part init f = List.fold_map part ~init:init ~f
 
-  let filter part f = List.filter part ~f:(fun (_, p) -> f p)
+  let filter part f = List.filter part ~f:(fun (_, e) -> f e)
 
-  let filter_map part f = List.filter_map part ~f:(fun (s, p) -> f (s, p))
+  let filter_map part f = List.filter_map part ~f:(fun (s, e) -> f (s, e))
 
-  let exists part f = List.exists part ~f:(fun (_, p) -> f p)
+  let exists part f = List.exists part ~f:(fun (_, e) -> f e)
 
-  let unsomes part = List.map part ~f:(fun (s, p) -> (s, Option.value_exn p))
+  let unsomes part = List.map part ~f:(fun (s, e) -> (s, Option.value_exn e))
 
-  let for_all part f = List.for_all part ~f:(fun (_, p) -> f p)
+  let for_all part f = List.for_all part ~f:(fun (_, e) -> f e)
 
-  let find_map part f = List.find_map part ~f:(fun (_, p) -> f p)
+  let find_map part f = List.find_map part ~f:(fun (_, e) -> f e)
 
-  let values part = List.map part ~f:(fun (_, p) -> p)
+  let find_remove part d =
+    let sub = Setc.Finite (Set.of_list (module Dom) [d]) in
+    let expl_opt = List.find part ~f:(fun (s, _) ->
+                       Setc.equal s sub) in
+    match expl_opt with
+    | None -> None
+    | Some(_, e) -> Some(List.filter part ~f:(fun (s, e) -> not (Setc.equal s sub)), e)
+
+  let values part = List.map part ~f:(fun (_, e) -> e)
 
   let of_list l =
     let univ_union = Setc.is_univ
@@ -1316,3 +1324,17 @@ let opt_to_string expl = Pdt.to_string Proof.opt_to_string "" expl
 let to_latex fmla expl = Pdt.to_latex (Proof.to_latex "" fmla) "" expl
 
 let to_light_string expl = Pdt.to_light_string (Proof.to_light "") "" expl
+
+(* GUI related (the function below DO NOT produce PDTs).            *)
+(* In particular, the subsets at each level DO NOT form partitions. *)
+let rec to_gui vars v pt expl_opt = match vars, expl_opt with
+  | [], _ -> Pdt.Leaf pt
+  | x :: vars, None ->
+     Node (x, [(Setc.Finite (Set.of_list (module Dom) [(Map.find_exn v x)]), to_gui vars v pt None)])
+  | x :: vars, Some(Pdt.Node (y, part)) when String.equal x y ->
+     let d = Map.find_exn v x in
+     let sub = Setc.Finite (Set.of_list (module Dom) [d]) in
+     match Part.find_remove part d with
+     | None -> Node (x, (sub, to_gui vars v pt None) :: part)
+     | Some(part, e) -> Node (x, (sub, to_gui vars v pt (Some(e))) :: part)
+  | _ -> raise (Invalid_argument (Printf.sprintf "could not construct GUI-explanation"))

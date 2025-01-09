@@ -195,3 +195,4 @@ val to_string: t -> string
 val opt_to_string: opt_t -> string
 val to_latex: Formula.t -> t -> string
 val to_light_string: t -> string
+val to_gui: string list -> Assignment.t -> Proof.t -> Proof.t Pdt.t option -> t

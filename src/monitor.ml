@@ -843,46 +843,52 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
     let line = Eio.Buf_read.line r_buf in
     traceln "Read emonitor line: %s" line;
     if String.equal line "Stop" then
-      ((match http_flow_opt with
-        | None -> ()
-        | Some (http_flow) -> send_data "{\"disconnect\": true}" http_flow);
-       raise Exit);
+      (match http_flow_opt with
+       | None -> ()
+        | Some (http_flow) -> send_data "{\"disconnect\": true}" http_flow;
+                              raise Exit);
     if Emonitor.is_verdict mon line then
       (let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
        traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
-       List.iter assignments ~f:(fun v ->
-           Stdio.printf "expl = %s\n" (Expl.opt_to_string (explain !prefix v pol tp f));
-           let expl = Pdt.unsomes (explain !prefix v pol tp f) in
-           (match http_flow_opt with
-            | None ->
-               (match mode with
-                | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
-                | Verified ->
-                   let (b, _, _) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
-                   Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
-                | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
-                | Debug ->
-                   let (b, c_e, c_trace) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
-                   Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
-                | DebugVis -> ())
-            | Some http_flow ->
-               (match mode with
-                | Argument.Mode.Unverified ->
-                   let (ertp, lrtp) = (Expl.ertp expl, Expl.lrtp expl) in
-                   let slice = Array.sub !prefix ertp (lrtp - ertp + 1) in
-                   let json_dbs = List.of_array (Array.mapi slice ~f:(fun i (ts, db) ->
-                                                     Out.Json.db ts (ertp + i) i db f)) in
-                   let json_expl_rows = List.of_array
-                                          (Array.mapi slice ~f:(fun i (ts, _) ->
-                                               let ertp_i = ertp + i in
-                                               Out.Json.expl_row ts ertp
-                                                 (if Int.equal tp ertp_i then Some (f, expl)
-                                                  else None))) in
-                   send_data (Out.Json.aggregate tp json_dbs json_expl_rows) http_flow
-                | Verified -> ()
-                | LaTeX
-                  | Debug
-                  | DebugVis -> ()))))
+       match http_flow_opt with
+       | None ->
+          (List.iter assignments ~f:(fun v ->
+               (* Stdio.printf "expl = %s\n" (Expl.opt_to_string (explain !prefix v pol tp f)); *)
+               let expl = Pdt.unsomes (explain !prefix v pol tp f) in
+               match mode with
+               | Argument.Mode.Unverified -> Out.Plain.print (Explanation ((ts, tp), expl))
+               | Verified ->
+                  let (b, _, _) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
+                  Out.Plain.print (ExplanationCheck ((ts, tp), expl, b))
+               | LaTeX -> Out.Plain.print (ExplanationLatex ((ts, tp), expl, f))
+               | Debug ->
+                  let (b, c_e, c_trace) = Checker_interface.check (Array.to_list !prefix) v f (Pdt.unleaf expl) in
+                  Out.Plain.print (ExplanationCheckDebug ((ts, tp), v, expl, b, c_e, c_trace))
+               | DebugVis -> ()))
+       | Some http_flow ->
+          (let expl = if List.is_empty assignments then
+                        Pdt.unsomes (explain !prefix (Map.empty (module String)) pol tp f)
+                      else (Option.value_exn
+                              (List.fold assignments ~init:None ~f:(fun expl v ->
+                                   let pt = Expl.Pdt.unleaf (Pdt.unsomes (explain !prefix v pol tp f)) in
+                                   Some(Expl.to_gui vars v pt expl)))) in
+           (match mode with
+            | Argument.Mode.Unverified ->
+               let (ertp, lrtp) = (Expl.ertp expl, Expl.lrtp expl) in
+               let slice = Array.sub !prefix ertp (lrtp - ertp + 1) in
+               let json_dbs = List.of_array (Array.mapi slice ~f:(fun i (ts, db) ->
+                                                 Out.Json.db ts (ertp + i) i db f)) in
+               let json_expl_rows = List.of_array
+                                      (Array.mapi slice ~f:(fun i (ts, _) ->
+                                           let ertp_i = ertp + i in
+                                           Out.Json.expl_row ts ertp
+                                             (if Int.equal tp ertp_i then Some (f, expl)
+                                              else None))) in
+               send_data (Out.Json.aggregate tp json_dbs json_expl_rows) http_flow
+            | Verified -> ()
+            | LaTeX
+              | Debug
+              | DebugVis -> ())))
     else
       (* get_pos output to keep track of progress *)
       (traceln "Read current progress";
