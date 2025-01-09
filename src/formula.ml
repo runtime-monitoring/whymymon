@@ -461,7 +461,6 @@ let convert (mon: Argument.Monitor.t) f =
   match mon with
   | DejaVu -> failwith "missing"
   | MonPoly -> to_monpoly f
-  | TimelyMon -> failwith "missing"
   | VeriMon -> to_monpoly f
 
 let rec replace_fv assignment = function

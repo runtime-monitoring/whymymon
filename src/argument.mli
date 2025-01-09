@@ -19,7 +19,7 @@ end
 
 module Monitor : sig
 
-  type t = MonPoly | VeriMon | DejaVu | TimelyMon
+  type t = MonPoly | VeriMon | DejaVu
 
   val of_string: string -> t
 
