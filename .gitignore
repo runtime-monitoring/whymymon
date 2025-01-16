@@ -24,6 +24,7 @@ tools/*.csv
 tools/*.log
 
 # third party
+third-party/dejavu-online
 third-party/monpoly
 
 # tmp
