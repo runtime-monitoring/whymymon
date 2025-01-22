@@ -41,3 +41,6 @@ tmp/
 *.~undo-tree~
 *.ocaml
 *.opam
+
+# python
+*__pycache__*
