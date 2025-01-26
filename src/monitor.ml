@@ -841,7 +841,7 @@ let send_data json http_flow =
 let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp http_flow_opt =
   while true do
     let line = Eio.Buf_read.line r_buf in
-    traceln "Read emonitor line: %s" line;
+    if !Etc.debug then traceln "Read emonitor line: %s" line;
     if String.equal line "Stop" then
       (match http_flow_opt with
        | None -> raise Exit
@@ -849,7 +849,7 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
                              raise Exit);
     if Emonitor.is_verdict mon line then
       (let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
-       traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
+       if !Etc.debug then traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
        match http_flow_opt with
        | None ->
           (List.iter assignments ~f:(fun v ->
@@ -891,7 +891,7 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
               | DebugVis -> ())))
     else
       (* get_pos output to keep track of progress *)
-      (traceln "Read current progress";
+      (if !Etc.debug then traceln "Read current progress";
        let tp = Emonitor.parse_prog_tp mon line in
        if Int.equal !last_tp tp then (Eio.Flow.copy_string "Stop\n" r_sink));
     Fiber.yield ()
@@ -900,14 +900,14 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
 let write (mon: Argument.Monitor.t) w_sink stream prefix last_tp =
   let rec step pb_opt =
     match Other_parser.Trace.parse_from_channel stream pb_opt with
-    | Finished -> traceln "Reached the end of event stream";
+    | Finished -> if !Etc.debug then traceln "Reached the end of event stream";
                   Eio.Flow.copy_string "> get_pos <\n" w_sink;
                   last_tp := Array.length !prefix - 1;
                   Fiber.yield ()
-    | Skipped (pb, msg) -> traceln "Skipped time-point due to: %S" msg;
+    | Skipped (pb, msg) -> if !Etc.debug then traceln "Skipped time-point due to: %S" msg;
                            Fiber.yield ();
                            step (Some(pb))
-    | Processed pb -> traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
+    | Processed pb -> if !Etc.debug then traceln "Processed event with time-stamp %d. Sending it to sink." pb.ts;
                       Eio.Flow.copy_string (Emonitor.write_line mon (pb.ts, pb.db)) w_sink;
                       Eio.Flow.copy_string "> get_pos <\n" w_sink;
                       prefix := Array.append !prefix [|(pb.ts, pb.db)|];
@@ -918,7 +918,7 @@ let write (mon: Argument.Monitor.t) w_sink stream prefix last_tp =
 let run_emonitor mon mon_path sig_path f_path r_sink w_source proc_mgr extra_args =
   let f_realpath = Filename_unix.realpath (Eio.Path.native_exn f_path) in
   let args = Emonitor.args mon ~mon_path ?sig_path ~f_path:f_realpath in
-  traceln "Running process with: %s" (Etc.string_list_to_string ~sep:" " args);
+  if !Etc.debug then traceln "Running process with: %s" (Etc.string_list_to_string ~sep:" " args);
   Eio.Process.run ~stdin:w_source ~stdout:r_sink ~stderr:r_sink
     proc_mgr (args @ extra_args)
 
@@ -929,11 +929,11 @@ let exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_m
       [ (* Spawn thread with external monitor process *)
         (fun () -> run_emonitor mon mon_path sig_path f_path r_sink w_source proc_mgr extra_args);
         (* External monitor I/O management *)
-        (fun () -> traceln "Writing lines to emonitor's stdin...";
+        (fun () -> if !Etc.debug then traceln "Writing lines to emonitor's stdin...";
                    write mon w_sink stream prefix last_tp);
-        (fun () -> traceln "Reading lines from emonitor's stdout...";
+        (fun () -> if !Etc.debug then traceln "Reading lines from emonitor's stdout...";
                    read mon r_buf r_sink prefix f pol mode vars last_tp http_flow_opt)]
-  with Exit -> traceln "Reached the end of the log file"
+  with Exit -> if !Etc.debug then traceln "Reached the end of the log file"
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
@@ -943,7 +943,7 @@ let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_a
   Eio_main.run @@ fun env ->
     (* Formula conversion *)
     let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file) in
-    traceln "Saving formula in %a" Eio.Path.pp f_path;
+    if !Etc.debug then traceln "Saving formula in %a" Eio.Path.pp f_path;
     Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
     (* Instantiate process/domain managers *)
     let proc_mgr = Eio.Stdenv.process_mgr env in
@@ -965,9 +965,9 @@ let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_a
       | GUI -> let net = Eio.Stdenv.net env in
                let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 31415) in
                let s = Eio.Net.listen ~sw ~backlog:1 ~reuse_addr:true net addr in
-               traceln "Starting server...";
+               if !Etc.debug then traceln "Starting server...";
                let http_flow, _ = Eio.Net.accept ~sw s in
-               traceln "Established connection with client";
+               if !Etc.debug then traceln "Established connection with client";
                send_headers http_flow;
                send_data (Out.Json.table_columns f) http_flow;
                (* while true do *)
