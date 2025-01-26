@@ -30,8 +30,8 @@ let is_verdict (mon: Argument.Monitor.t) line =
 
 let parse_prog_tp (mon: Argument.Monitor.t) line =
   match mon with
-  | MonPoly -> Int.of_string (List.last_exn (String.split line ~on:' '))
-  | VeriMon -> failwith "missing"
+  | MonPoly
+    | VeriMon -> Int.of_string (List.last_exn (String.split line ~on:' '))
   | DejaVu -> failwith "missing"
 
 let write_line (mon: Argument.Monitor.t) (ts, db) =

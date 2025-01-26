@@ -844,9 +844,9 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
     traceln "Read emonitor line: %s" line;
     if String.equal line "Stop" then
       (match http_flow_opt with
-       | None -> ()
-        | Some (http_flow) -> send_data "{\"disconnect\": true}" http_flow;
-                              raise Exit);
+       | None -> raise Exit
+       | Some (http_flow) -> send_data "{\"disconnect\": true}" http_flow;
+                             raise Exit);
     if Emonitor.is_verdict mon line then
       (let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
        traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
