@@ -32,6 +32,8 @@ type t =
   | Since of Interval.t * t * t
   | Until of Interval.t * t * t
 
+val var_tt: string -> t -> Dom.tt
+
 val tt: t
 val ff: t
 val eqconst: string -> Dom.t -> t

@@ -10,16 +10,16 @@
 open Base
 
 (* TODO: Rewrite this using functors/first-class modules to distinguish monitors (or maybe not) *)
-let to_tpts_assignments (mon: Argument.Monitor.t) vars line =
+let to_tpts_assignments (mon: Argument.Monitor.t) vars vars_tt line =
   match mon with
   | MonPoly
     | VeriMon -> let (tp, ts, sss) = Emonitor_parser.Monpoly.parse line in
                  if List.is_empty sss then (tp, ts, [Assignment.init ()])
                  else
                    (tp, ts, List.map sss ~f:(fun ss ->
-                                List.fold2_exn vars ss ~init:(Assignment.init ())
-                                  ~f:(fun v x s -> let d = Dom.string_to_t s (Pred.Sig.var_tt x) in
-                                                   Assignment.add v x d)))
+                                List.fold2_exn (List.zip_exn vars vars_tt) ss ~init:(Assignment.init ())
+                                  ~f:(fun v (x, x_tt) s -> let d = Dom.string_to_t s x_tt in
+                                                           Assignment.add v x d)))
   | DejaVu -> failwith "missing"
 
 let is_verdict (mon: Argument.Monitor.t) line =

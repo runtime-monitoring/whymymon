@@ -838,7 +838,7 @@ let send_data json http_flow =
   Eio.Flow.copy_string "event: message\n" http_flow;
   Eio.Flow.copy_string (Printf.sprintf "data: %s\n\n" json) http_flow
 
-let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp http_flow_opt =
+let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars vars_tt last_tp http_flow_opt =
   while true do
     let line = Eio.Buf_read.line r_buf in
     if !Etc.debug then traceln "Read emonitor line: %s" line;
@@ -848,7 +848,7 @@ let read (mon: Argument.Monitor.t) r_buf r_sink prefix f pol mode vars last_tp h
        | Some (http_flow) -> send_data "{\"disconnect\": true}" http_flow;
                              raise Exit);
     if Emonitor.is_verdict mon line then
-      (let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars line in
+      (let (tp, ts, assignments) = Emonitor.to_tpts_assignments mon vars vars_tt line in
        if !Etc.debug then traceln "%s" (Etc.string_list_to_string ~sep:"\n" (List.map assignments ~f:Assignment.to_string));
        match http_flow_opt with
        | None ->
@@ -923,7 +923,7 @@ let run_emonitor mon mon_path sig_path f_path r_sink w_source proc_mgr extra_arg
     proc_mgr (args @ extra_args)
 
 let exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
-      extra_args stream prefix last_tp f pol mode vars http_flow_opt =
+      extra_args stream prefix last_tp f pol mode vars vars_tt http_flow_opt =
   try
     Fiber.all
       [ (* Spawn thread with external monitor process *)
@@ -932,13 +932,14 @@ let exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_m
         (fun () -> if !Etc.debug then traceln "Writing lines to emonitor's stdin...";
                    write mon w_sink stream prefix last_tp);
         (fun () -> if !Etc.debug then traceln "Reading lines from emonitor's stdout...";
-                   read mon r_buf r_sink prefix f pol mode vars last_tp http_flow_opt)]
+                   read mon r_buf r_sink prefix f pol mode vars vars_tt last_tp http_flow_opt)]
   with Exit -> if !Etc.debug then traceln "Reached the end of the log file"
 
 (* sig_path is only passed as a parameter when either MonPoly or VeriMon is the external monitor *)
 let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_args =
   let pol = Polarity.of_pref pref in
   let vars = Set.elements (Formula.fv f) in
+  let vars_tt = List.map vars ~f:(fun x -> Formula.var_tt x f) in
   let ( / ) = Eio.Path.( / ) in
   Eio_main.run @@ fun env ->
     (* Formula conversion *)
@@ -961,7 +962,7 @@ let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_a
       match interf with
       | Argument.Interface.CLI ->
          exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
-           extra_args stream prefix last_tp f pol mode vars None
+           extra_args stream prefix last_tp f pol mode vars vars_tt None
       | GUI -> let net = Eio.Stdenv.net env in
                let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 31415) in
                let s = Eio.Net.listen ~sw ~backlog:1 ~reuse_addr:true net addr in
@@ -975,4 +976,4 @@ let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_a
                (*   send_data (Out.Json.table_columns f) http_flow *)
                (*     done *)
                exec_fibers mon mon_path sig_path f_path r_sink w_source w_sink r_buf proc_mgr
-                 extra_args stream prefix last_tp f pol mode vars (Some(http_flow)))
+                 extra_args stream prefix last_tp f pol mode vars vars_tt (Some(http_flow)))

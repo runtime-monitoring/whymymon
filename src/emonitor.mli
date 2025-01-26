@@ -9,7 +9,7 @@
 
 open Etc
 
-val to_tpts_assignments: Argument.Monitor.t -> string list -> string -> timepoint * timestamp * Assignment.t list
+val to_tpts_assignments: Argument.Monitor.t -> string list -> Dom.tt list -> string -> timepoint * timestamp * Assignment.t list
 
 val is_verdict: Argument.Monitor.t -> string -> bool
 
