@@ -21,12 +21,13 @@ then
 fi
 
 # Arrays:
-# SIZES=(10 20)
-# ERS=(1 5 10)
-# DELTAS=(4 8 12)
-SIZES=(3 4 5 6 7 8 9 10 15 20 25)
+SIZES=(3)
 ERS=(1 5 10)
 DELTAS=(4 8 12)
+
+#SIZES=(3 4 5 6 7 8 9 10 15 20 25)
+#ERS=(1 5 10)
+#DELTAS=(4 8 12)
 SEEDS=$(seq 0 "${N_SEEDS}")
 
 for i in "${SIZES[@]}"; do

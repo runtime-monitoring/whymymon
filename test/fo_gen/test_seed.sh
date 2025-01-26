@@ -20,17 +20,17 @@ usage () {
 
 verb () {
 
-    python test/fo_gen/gen_for.py -pred 5 -A 5 -S ${SIZE} -seed ${SEED} -out test/fo_gen/tmp/${PREFIX} -prob_let 0 -prob_rand 0 -prob_eand0 -prob_nand 0 > /dev/null
+    python test/fo_gen/gen_for.py -pred 5 -A 5 -S ${SIZE} -seed ${SEED} -out test/fo_gen/tmp/${PREFIX} -prob_let 0 -prob_rand 0 -prob_eand 0 -prob_nand 0 > /dev/null
 
     python test/fo_gen/gen_log.py -sig test/fo_gen/tmp/${PREFIX}.sig -form test/fo_gen/tmp/${PREFIX}.mfotl -i ${DELTA} -e ${ER} -l 500 -log test/fo_gen/tmp/${PREFIX} -logseed ${SEED} > /dev/null
 
     if [[ "${CHECK_FLAG}" = "verified" ]]
     then
-        OUT=$(bin/whymymon.exe -path default -cli -mode verified -sig test/fo_gen/tmp/${PREFIX}.sig -formula test/fo_gen/tmp/${PREFIX}.mfotl -log test/fo_gen/tmp/${PREFIX}.log 2>&1)
+        OUT=$(bin/whymymon.exe -path default -cli -mode verified -pref sat -sig test/fo_gen/tmp/${PREFIX}.sig -formula test/fo_gen/tmp/${PREFIX}.mfotl -log test/fo_gen/tmp/${PREFIX}.log 2>&1)
     else
         if [[ "${CHECK_FLAG}" = "unverified" ]]
         then
-            OUT=$(bin/whymymon.exe -path default -cli -mode unverified -sig test/fo_gen/tmp/${PREFIX}.sig -formula test/fo_gen/tmp/${PREFIX}.mfotl -log test/fo_gen/tmp/${PREFIX}.log 2>&1)
+            OUT=$(bin/whymymon.exe -path default -cli -mode unverified -pref sat -sig test/fo_gen/tmp/${PREFIX}.sig -formula test/fo_gen/tmp/${PREFIX}.mfotl -log test/fo_gen/tmp/${PREFIX}.log 2>&1)
         else
             usage
         fi
