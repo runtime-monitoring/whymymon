@@ -81,6 +81,7 @@ module WhyMyMon = struct
          process_args_rec args
       | ("-mode" :: m :: args) ->
          mode_ref := Argument.Mode.of_string m;
+         if String.equal m "debug" then Etc.debug := true;
          process_args_rec args
       | ("-sig" :: sf :: args) ->
          nec_arg_count := !nec_arg_count + 1;
