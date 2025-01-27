@@ -57,7 +57,7 @@ let var_tt x f =
       | Until (_, f1, f2) -> (match var_tt_rec x f1, var_tt_rec x f2 with
                               | Some tt, _ -> Some tt
                               | _, Some tt -> Some tt
-                              | _ -> raise (Invalid_argument ("could not infer type of variable " ^ x))) in
+                              | _ -> None) in
   Option.value_exn (var_tt_rec x f)
 
 let tt = TT
