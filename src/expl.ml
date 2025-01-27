@@ -1269,29 +1269,29 @@ let rec opt_equal expl expl' = match expl, expl' with
   | Node (x, part), Node (x', part') -> String.equal x x' && Part.equal part part' opt_equal
   | _ -> false
 
-let rec is_violated = function
+let rec exists_violation = function
   | Pdt.Leaf l -> (match l with
                    | Proof.V _ -> true
                    | Proof.S _ -> false)
-  | Node (x, part) -> Part.exists part is_violated
+  | Node (x, part) -> Part.exists part exists_violation
 
-let rec opt_is_violated = function
+let rec opt_exists_violation = function
   | Pdt.Leaf l -> (match l with
                    | Some (Proof.V _) -> true
                    | _ -> false)
-  | Node (x, part) -> Part.exists part opt_is_violated
+  | Node (x, part) -> Part.exists part opt_exists_violation
 
-let rec opt_is_satisfied = function
+let rec opt_exists_satisfaction = function
   | Pdt.Leaf l -> (match l with
                    | Some (Proof.S _) -> true
                    | _ -> false)
-  | Node (x, part) -> Part.exists part opt_is_violated
+  | Node (x, part) -> Part.exists part opt_exists_satisfaction
 
-let rec opt_is_none = function
+let rec opt_all_none = function
   | Pdt.Leaf l -> (match l with
                    | None -> true
                    | Some _ -> false)
-  | Node (x, part) -> Part.for_all part opt_is_violated
+  | Node (x, part) -> Part.for_all part opt_all_none
 
 let at expl =
   let rec at_rec = function

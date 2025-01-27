@@ -263,7 +263,7 @@ let explain prefix v pol tp f =
        (* traceln "|fvs| = %d" (Set.length fvs); *)
        (* traceln "|vars| = %d" (List.length vars); *)
        let vars = List.filter vars ~f:(fun x -> Set.mem fvs x) in
-       (* traceln "|vars| = %d" (List.length vars); *)
+       (* if !Etc.debug then traceln "|vars| = %d" (List.length vars); *)
        let expl = Pdt.somes_pol pol (pdt_of tp r trms vars maps') in
        (* traceln "PREDICATE %s; %s expl = %s" r (Polarity.to_string pol) (Expl.opt_to_string expl); *)
        expl
@@ -275,11 +275,14 @@ let explain prefix v pol tp f =
        expl
     | And (f1, f2) ->
        let expl1 = eval vars vars_map tp pol f1 in
-       let expl2 = eval vars vars_map tp pol f2 in
-       let expl = Pdt.apply2_reduce Proof.opt_equal vars
-                    (fun p1_opt p2_opt -> (do_and p1_opt p2_opt pol)) expl1 expl2 in
-       (* traceln "AND expl = %s" (Expl.opt_to_string expl); *)
-       expl
+       if Expl.opt_all_none expl1 then
+         Pdt.Leaf None
+       else
+         (let expl2 = eval vars vars_map tp pol f2 in
+          let expl = Pdt.apply2_reduce Proof.opt_equal vars
+                       (fun p1_opt p2_opt -> (do_and p1_opt p2_opt pol)) expl1 expl2 in
+          (* traceln "AND expl = %s" (Expl.opt_to_string expl); *)
+          expl)
     | Or (f1, f2) ->
        let expl1 = eval vars vars_map tp pol f1 in
        let expl2 = eval vars vars_map tp pol f2 in
@@ -287,7 +290,7 @@ let explain prefix v pol tp f =
          (fun p1_opt p2_opt -> (do_or p1_opt p2_opt pol)) expl1 expl2
     | Imp (f1, f2) ->
        let expl1 = eval vars vars_map tp (Polarity.invert pol) f1 in
-       (match pol, Expl.opt_is_satisfied expl1 with
+       (match pol, Expl.opt_exists_satisfaction expl1 with
         | VIO, false -> Pdt.Leaf None
         | _ -> let expl2 = eval vars vars_map tp pol f2 in
                let expl = Pdt.apply2_reduce Proof.opt_equal vars
@@ -298,7 +301,7 @@ let explain prefix v pol tp f =
        let (expl1, expl2) =
          (match pol with
           | SAT -> let s_e1 = eval vars vars_map tp SAT f1 in
-                   if Expl.opt_is_none s_e1 then
+                   if Expl.opt_all_none s_e1 then
                      (let v_e1 = eval vars vars_map tp VIO f1 in
                       let v_e2 = eval vars vars_map tp VIO f2 in
                       (v_e1, v_e2))
@@ -306,7 +309,7 @@ let explain prefix v pol tp f =
                      (let s_e2 = eval vars vars_map tp SAT f2 in
                       (s_e1, s_e2))
           | VIO -> let s_e1 = eval vars vars_map tp SAT f1 in
-                   if Expl.opt_is_none s_e1 then
+                   if Expl.opt_all_none s_e1 then
                      (let v_e1 = eval vars vars_map tp VIO f1 in
                       let s_e2 = eval vars vars_map tp SAT f2 in
                       (v_e1, s_e2))

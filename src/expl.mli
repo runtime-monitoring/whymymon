@@ -182,10 +182,10 @@ type t = Proof.t Pdt.t
 type opt_t = Proof.t option Pdt.t
 
 val equal: t -> t -> bool
-val is_violated: t -> bool
-val opt_is_violated: opt_t -> bool
-val opt_is_satisfied: opt_t -> bool
-val opt_is_none: opt_t -> bool
+val exists_violation: t -> bool
+val opt_exists_violation: opt_t -> bool
+val opt_exists_satisfaction: opt_t -> bool
+val opt_all_none: opt_t -> bool
 val at: t -> int
 val sort_parts: t -> t
 val ertp: t -> int
