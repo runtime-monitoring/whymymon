@@ -436,7 +436,7 @@ let to_latex = to_latex_rec 0
 let rec to_monpoly = function
   | TT -> Printf.sprintf "TRUE"
   | FF -> Printf.sprintf "FALSE"
-  | EqConst (x, c) -> Printf.sprintf "(%s = %s)" x (Dom.to_string c)
+  | EqConst (x, c) -> Printf.sprintf "(%s = %s)" x (Dom.to_q_string c)
   | Predicate (r, trms) -> Printf.sprintf "%s(%s)" r (Term.list_to_string trms)
   | Neg f -> Printf.sprintf "(NOT %a)" (fun x -> to_monpoly) f
   | And (f, g) -> Printf.sprintf "(%a AND %a)" (fun x -> to_monpoly) f (fun x -> to_monpoly) g
