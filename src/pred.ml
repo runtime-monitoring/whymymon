@@ -56,8 +56,8 @@ module Term = struct
       | [] -> ""
       | (Var x) :: trms -> if List.is_empty trms then x
                            else Printf.sprintf "%s, %s" x (list_to_string trms)
-      | (Const d) :: trms -> if List.is_empty trms then (Dom.to_string d)
-                             else Printf.sprintf "%s, %s" (Dom.to_string d) (list_to_string trms)
+      | (Const d) :: trms -> if List.is_empty trms then (Dom.to_q_string d)
+                             else Printf.sprintf "%s, %s" (Dom.to_q_string d) (list_to_string trms)
 
     let rec list_to_json_string trms =
       match trms with
