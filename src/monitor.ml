@@ -948,7 +948,7 @@ let exec interf mon ~mon_path ?sig_path ~formula_file stream f pref mode extra_a
     (* Formula conversion *)
     let f_path = Eio.Stdenv.cwd env / ("tmp/" ^ formula_file) in
     if !Etc.debug then traceln "Saving formula in %a" Eio.Path.pp f_path;
-    Eio.Path.save ~create:(`If_missing 0o644) f_path (Formula.convert mon f);
+    Eio.Path.save ~create:(`Or_truncate 0o644) f_path (Formula.convert mon f);
     (* Instantiate process/domain managers *)
     let proc_mgr = Eio.Stdenv.process_mgr env in
     let domain_mgr = Eio.Stdenv.domain_mgr env in
