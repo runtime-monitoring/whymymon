@@ -42,6 +42,8 @@ let write_line (mon: Argument.Monitor.t) (ts, db) =
 
 let args (mon: Argument.Monitor.t) ~mon_path ?sig_path ~f_path =
   match mon with
-  | MonPoly -> [mon_path; "-sig"; Option.value_exn sig_path; "-formula"; f_path; "-nonewlastts"];
-  | VeriMon -> [mon_path; "-sig"; Option.value_exn sig_path; "-formula"; f_path; "-nonewlastts"; "-verified"];
+  | MonPoly -> [mon_path; "-sig"; Option.value_exn sig_path; "-formula";
+                f_path; "-nonewlastts"; "-nofilteremptytp"; "-nofilterrel"];
+  | VeriMon -> [mon_path; "-sig"; Option.value_exn sig_path; "-formula";
+                f_path; "-nonewlastts"; "-nofilteremptytp"; "-nofilterrel"; "-verified"];
   | DejaVu -> failwith "missing"
